@@ -19,20 +19,11 @@ STRINGS = {
     "Отлично!": ("Great!", "Harika!"),
     "Супер!": ("Super!", "Süper!"),
     "Невероятно!": ("Incredible!", "İnanılmaz!"),
-    "Тупик: так поле не заполнить. Отмени ход": (
-        "Dead end: the board can't be filled now. Undo the move",
-        "Çıkmaz: tahta artık dolmaz. Hamleyi geri al"),
-    "Нет ходов! Отмени ошибку": ("No moves! Undo your mistake", "Hamle yok! Hatayı geri al"),
-    "Всё ещё тупик — отмени ещё ход": (
-        "Still a dead end — undo one more move",
-        "Hâlâ çıkmaz — bir hamle daha geri al"),
+    # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Это сообщение — до окна 20.1b.
+    "Сердца кончились — начни заново": ("Out of hearts — start over", "Canın kalmadı — baştan başla"),
     "Подсказка откроется после просмотра рекламы": (
         "Watch the ad to unlock the hint",
         "İpucu için reklamı izle"),
-    "Сначала отмени ошибочный ход": ("Undo the wrong move first", "Önce hatalı hamleyi geri al"),
-    "Подсказка: убраны неверные блоки (%d)": (
-        "Hint: wrong blocks removed (%d)",
-        "İpucu: hatalı bloklar kaldırıldı (%d)"),
     # tutorial_coach.gd: подпись над полем, причины красной подсветки, подсказки обучения
     "Число — это размер блока. Перетащи блок на его число": (
         "The number is the block's size. Drag each block onto its number",

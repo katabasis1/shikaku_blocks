@@ -21,23 +21,11 @@ msgstr "Super!"
 msgid "Невероятно!"
 msgstr "Incredible!"
 
-msgid "Тупик: так поле не заполнить. Отмени ход"
-msgstr "Dead end: the board can't be filled now. Undo the move"
-
-msgid "Нет ходов! Отмени ошибку"
-msgstr "No moves! Undo your mistake"
-
-msgid "Всё ещё тупик — отмени ещё ход"
-msgstr "Still a dead end — undo one more move"
+msgid "Сердца кончились — начни заново"
+msgstr "Out of hearts — start over"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "Watch the ad to unlock the hint"
-
-msgid "Сначала отмени ошибочный ход"
-msgstr "Undo the wrong move first"
-
-msgid "Подсказка: убраны неверные блоки (%d)"
-msgstr "Hint: wrong blocks removed (%d)"
 
 msgid "Число — это размер блока. Перетащи блок на его число"
 msgstr "The number is the block's size. Drag each block onto its number"

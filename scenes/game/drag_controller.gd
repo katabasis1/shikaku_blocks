@@ -1,8 +1,9 @@
 class_name DragController
 extends Node
 ## Перетаскивание блока из лотка на поле: нажатие на слот, «подъём» блока (×1,08, тень «поднят»),
-## поворот на лету (ПКМ, колесо, R/пробел, второй палец), магнит к ближайшему
-## допустимому месту и примерка каждой клетки (Fit).
+## поворот на лету (ПКМ, колесо, R/пробел, второй палец), магнит к допустимому месту рядом и примерка каждой
+## клетки (Fit). Магнит честный (20.1a): ошибка стоит сердца, поэтому место за игрока он выбирает, только если
+## рядом оно одно; подходят два и больше — не тянет никуда, и отпущенный блок вернётся в лоток.
 ## Ход не делает сам: верное место отдаёт сигналом dropped, его ставит Game;
 ## о неудаче (returned), цели под блоком (hover_changed) и повороте (rotated) узнаёт
 ## TutorialCoach. На уровнях 1..Tutorial.GUARD_LEVELS тупиковое место — тоже красное.
@@ -34,7 +35,7 @@ const TOUCH_LIFT := 60.0
 ## красный призрак на поле (Board.show_preview). DRAG_TINT_BAD убран 02.10 по срезу tools/shader_preview.py.
 ## Взять блок: ×Block.LIFT_SCALE от полевого масштаба за это время, тень — в «поднят».
 const LIFT_TIME := 0.1
-## Магнит: на сколько клеток блок притягивается к ближайшему допустимому месту.
+## Магнит: на сколько клеток блок притягивается к допустимому месту (единственному в этом радиусе, 20.1a).
 const SNAP_RADIUS := 1.0
 ## Защита от лавины поворотов с тачпада/колеса.
 const ROTATE_COOLDOWN_MS := 150
@@ -129,10 +130,15 @@ func cancel() -> void:
 
 
 func _on_slot_input(event: InputEvent, i: int) -> void:
-	if _game.finished or is_busy():
+	if not _game.can_play() or is_busy():
 		return
 	var mb := event as InputEventMouseButton
-	if mb == null or not mb.pressed or _tray.blocks[i] == null:
+	if mb == null or not mb.pressed:
+		return
+	# Ошибочный блок ещё трескается на поле (20.1a) — сразу в гнездо: ход игрока важнее эффекта. Он мог быть
+	# последним сердцем — тогда ходить уже нельзя.
+	_game.flush_mistake()
+	if not _game.can_play() or _tray.blocks[i] == null:
 		return
 	pressed.emit()
 	if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -244,18 +250,10 @@ func _update_drag(dt: float = 0.0) -> void:
 	var r := Rect2i(base, b.cells)
 	var fit := _evaluate(r)
 	if fit != Fit.OK:
-		# Магнит: ближайшее допустимое место в радиусе SNAP_RADIUS клеток.
-		var best_d := SNAP_RADIUS + 0.001
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				if dx == 0 and dy == 0:
-					continue
-				var cand := Rect2i(base + Vector2i(dx, dy), b.cells)
-				var d := fcell.distance_to(Vector2(cand.position))
-				if d < best_d and _evaluate(cand) == Fit.OK:
-					best_d = d
-					r = cand
-					fit = Fit.OK
+		var snap := snap_target(fcell, base, b.cells)
+		if snap.size != Vector2i.ZERO:
+			r = snap
+			fit = Fit.OK
 	if r != _target or fit != _target_fit:
 		_target = r
 		_target_fit = fit
@@ -271,6 +269,23 @@ func _update_drag(dt: float = 0.0) -> void:
 	if fit == Fit.OK and _cfg.magnet_pull > 0.0:
 		want = want.lerp(_board.cell_center_global(r) - current_size * 0.5, _cfg.magnet_pull)
 	_move_block(b, want, dt)
+
+
+## Магнит (20.1a — честный): допустимое место в радиусе SNAP_RADIUS клеток от fcell (base — fcell, округлённая),
+## если оно там одно. Нет или их несколько — Rect2i() (размер 0): блок не тянется, отпущенный — в лоток.
+func snap_target(fcell: Vector2, base: Vector2i, dims: Vector2i) -> Rect2i:
+	var found := Rect2i()
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if dx == 0 and dy == 0:
+				continue
+			var cand := Rect2i(base + Vector2i(dx, dy), dims)
+			if fcell.distance_to(Vector2(cand.position)) > SNAP_RADIUS + 0.001 or _evaluate(cand) != Fit.OK:
+				continue
+			if found.size != Vector2i.ZERO:
+				return Rect2i()  # два места — выбирать за игрока нельзя
+			found = cand
+	return found
 
 
 ## Блок к точке want: пружина (вес, лёгкое отставание) и наклон по скорости; «Меньше движения» — сразу.

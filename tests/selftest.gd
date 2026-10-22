@@ -5181,23 +5181,45 @@ func _test_pause(game: Game) -> void:
 
 
 ## Ставит тупиковый ход, проверяет предупреждение, отмену и откат подсказкой.
+## Ошибка (20.1a) на уровне lvl: тупиковый свой ход не засчитан — ходов не прибавилось, гнездо пустое и новый блок в
+## него не выдан, блок на поле; сердце сгорело (на уровне с сердцами), ошибка посчитана. flush_mistake — блок снова в
+## своём гнезде, трещины нет, место свободно. Вторая ошибка — подсказка сначала возвращает блок, потом ставит верный.
+## false — тупикового хода не нашлось.
 func _test_dead_end(game: Game, lvl: int) -> bool:
 	var mv := _find_dead_end_move(game)
 	if mv.is_empty():
 		return false
-	_place(game, mv[0], mv[1])
-	_check(game.dead_end, "L%d: тупиковый ход %s не распознан" % [lvl, str(mv[1])])
+	var slot: int = mv[0]
+	var r: Rect2i = mv[1]
+	var b: Block = game.tray.blocks[slot]
 	var moves_before: int = game.moves.size()
-	game._on_undo_pressed()
-	_check(game.moves.size() == moves_before - 1 and not game.dead_end, "L%d: отмена не сняла тупик" % lvl)
+	var queue_before: int = game.tray.queue.size()
+	var left_before := game.hearts.left
+	var mistakes_before := game.hearts.mistakes
+	_drop(game, slot, r)
+	_check(game.has_mistake() and game.moves.size() == moves_before and game.tray.blocks[slot] == null
+			and game.tray.queue.size() == queue_before and b.get_parent() == game.board.blocks_root
+			and not game.board.check_rect(r),
+			"L%d: тупиковый ход %s засчитан или блок не на поле (ходов %d → %d, в очереди %d → %d)" % [lvl, str(r),
+			moves_before, game.moves.size(), queue_before, game.tray.queue.size()])
+	var want_left := maxi(left_before - 1, 0) if game.hearts.is_limited() else 0
+	_check(game.hearts.mistakes == mistakes_before + 1 and game.hearts.left == want_left,
+			"L%d: после ошибки сердец %d (ждали %d), ошибок %d (ждали %d)" % [lvl, game.hearts.left, want_left,
+			game.hearts.mistakes, mistakes_before + 1])
+	game.flush_mistake()
+	_check(not game.has_mistake() and game.tray.blocks[slot] == b and b.get_parent() == game.tray.slots[slot]
+			and game.board.check_rect(r) and is_zero_approx(b.cracked()) and game.moves.size() == moves_before,
+			"L%d: ошибочный блок не вернулся в гнездо %d (трещина %.2f)" % [lvl, slot, b.cracked()])
 	await _frames(1)
 
 	mv = _find_dead_end_move(game)
 	if mv.is_empty():
-		return _check(false, "L%d: после отмены тупиковый ход пропал" % lvl)
-	_place(game, mv[0], mv[1])
+		return _check(false, "L%d: после возврата тупиковый ход пропал" % lvl)
+	_drop(game, mv[0], mv[1])
 	game.hints.give()
-	_check(not game.dead_end and game.moves.is_empty(), "L%d: подсказка не откатила тупиковый ход" % lvl)
+	_check(not game.has_mistake() and game.moves.size() == moves_before + 1 and game.can_play(),
+			"L%d: подсказка после ошибки не вернула блок или не поставила верный (ходов %d, ждали %d)" % [lvl,
+			game.moves.size(), moves_before + 1])
 	await _frames(1)
 	return true
 
@@ -5225,6 +5247,14 @@ func _place(game: Game, slot: int, r: Rect2i) -> void:
 	if b.cells != r.size:
 		b.rotate_cells()
 	game.commit_place(b, slot, r)
+
+
+## Свой ход, как его отпускает DragController (Game._on_dropped): тупиковый — ошибка (20.1a), остальные — commit_place.
+func _drop(game: Game, slot: int, r: Rect2i) -> void:
+	var b: Block = game.tray.blocks[slot]
+	if b.cells != r.size:
+		b.rotate_cells()
+	game._on_dropped(b, slot, r)
 
 
 ## Проходит текущий уровень одними подсказками. true — уровень пройден.

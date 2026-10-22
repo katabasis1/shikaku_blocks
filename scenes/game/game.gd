@@ -1,6 +1,6 @@
 class_name Game
 extends Control
-## Уровень: запуск, HUD, ходы и их отмена, проверка тупика, победа, навигация, пауза.
+## Уровень: запуск, HUD, ходы, сердца и ошибки (20.1a), победа, навигация, пауза.
 ## Остальное — в компонентах (узлы game.tscn):
 ##   Tray (Content/Tray)  — лоток: слоты, блоки, очередь, поиск хода по решению;
 ##   DragController       — перетаскивание, поворот на лету, магнит, примерка;
@@ -12,9 +12,11 @@ extends Control
 ## Ввод (_input) и кадры (_process) раздаёт Game: сначала рука, потом перетаскивание.
 ## Раскладка (портрет / альбом) — apply_layout по размеру экрана, расчёт в GameLayout.
 ##
-## После каждого хода ShikakuSolver проверяет, можно ли ещё заполнить поле:
-## тупиковый ход сразу подсвечивается, а подсказка ищет решение от текущей
-## расстановки (в тупике — откатывает неверные ходы).
+## Сердца (20.1a, PLAN 20.1; логика — Hearts): отмены хода нет. Перед каждым своим ходом ShikakuSolver проверяет,
+## можно ли после него заполнить поле. Нельзя — ошибка: сердце сгорает сразу, блок встаёт на место, трескается
+## (14.6g) и сам возвращается в своё гнездо (MISTAKE_RETURN; любое нажатие на лоток или подсказка — сразу). Так
+## тупик на поле не задерживается, и подсказка всегда ищет решение от текущей расстановки. Сердца кончились — поле
+## стоит до возрождения (revive) или «Заново»; окно с выбором — 20.1b.
 
 const MENU_SCENE := "res://scenes/menu/menu.tscn"
 ## level уровня «Лаборатории» (19.3): дальше всех уровней с обучением и страховкой.
@@ -38,6 +40,10 @@ const WIN_SLIDE_SIDE := 160.0
 ## Окно победы — через столько секунд после последнего хода (14.5: удар победы — в миг касания последнего блока,
 ## через JuiceConfig.land_time; затем hit-stop, волна по полю и мозаика — к окну они доиграли).
 const WIN_SHOW_AT := 1.15
+## Ошибка (20.1a): неверный блок возвращается в гнездо через столько секунд после хода — после трещины (0,45 с
+## предупреждение + JuiceConfig.dead_crack_time). Начальное значение: игрок должен успеть увидеть трещину. Если на
+## пробе блок «пропадает раньше, чем понял, что не так» — +0,2 с; если ждут его, чтобы ходить дальше, — −0,2 с.
+const MISTAKE_RETURN := 0.9
 
 @onready var board: Board = %Board
 @onready var board_area: Control = %BoardArea
@@ -52,7 +58,7 @@ const WIN_SHOW_AT := 1.15
 @onready var score_label: Label = %ScoreLabel
 @onready var remaining_label: PillLabel = %RemainingLabel
 @onready var coach_label: Label = %CoachLabel
-@onready var undo_button: Button = %UndoButton
+@onready var hearts_bar: HeartsBar = %HeartsBar
 @onready var hint_button: Button = %HintButton
 @onready var hint_ad_badge: Control = %AdBadge
 @onready var hint_counter: Control = %HintCounter
@@ -78,21 +84,24 @@ var daily_mode: bool = false
 var lab_mechanic: String = ""
 var lab_index: int = 0
 var daily_date_key: String = ""
-## Сделанные ходы: {slot, block, rect, drawn, points, lines, line_rects, streak_before, power}.
+## Сделанные ходы: {slot, block, rect, drawn, points, lines, line_rects, streak_before, power}. Ошибочного хода здесь
+## нет: он не засчитан (_mistake).
 var moves: Array[Dictionary] = []
-## Серия (14.4): сколько ходов подряд закрыли хотя бы одну линию; ход без линии обнуляет, отмена — возвращает.
+## Серия (14.4): сколько ходов подряд закрыли хотя бы одну линию; ход без линии и ошибка обнуляют.
 var line_streak: int = 0
 ## Серия постановок (15.2): сколько ходов подряд легли не позже Audio.PLACE_STREAK_WINDOW после прошлого — нота
-## постановки на столько ступеней выше (не больше Audio.PLACE_STREAK_MAX). Отмена, тупик и новый уровень обнуляют.
+## постановки на столько ступеней выше (не больше Audio.PLACE_STREAK_MAX). Ошибка и новый уровень обнуляют.
 var note_streak: int = 0
 var _last_note_ms: int = -1000000
 var level_score: int = 0
-var undos_used: int = 0
+## Сердца, ошибки и возрождения попытки (20.1a).
+var hearts := Hearts.new()
 var finished: bool = false
 ## Открыто окно паузы.
 var paused: bool = false
-## Поле уже не заполнить оставшимися блоками (висит «отмени ход»).
-var dead_end: bool = false
+## Ошибочный ход (20.1a): {block, slot, rect} — блок ещё на поле и трескается, сейчас вернётся в гнездо; {} — нет.
+## Ход не засчитан: в moves его нет, очков нет, гнездо пустое (новый блок в него не выдан).
+var _mistake: Dictionary = {}
 ## Номер запуска уровня: ответы рекламы от прежнего запуска игнорируются.
 var session: int = 0
 ## Альбомная раскладка (поле слева, столбик справа) — см. apply_layout.
@@ -128,7 +137,6 @@ func _ready() -> void:
 	drag.dropped.connect(_on_dropped)
 	board.landed.connect(_on_block_landed)
 	board_area.resized.connect(_layout_board)
-	undo_button.pressed.connect(_on_undo_pressed)
 	hint_button.pressed.connect(hints.request)
 	pause_button.pressed.connect(_on_pause_pressed)
 	pause_panel.closed.connect(_on_resume)
@@ -199,7 +207,7 @@ func _begin_level(n: int, is_daily: bool, data: Dictionary, mechanic: String, in
 	lab_index = index
 	session += 1
 	finished = false
-	dead_end = false
+	_mistake = {}
 	hints.reset()
 	juice.reset()
 	_next_pending = false
@@ -213,7 +221,8 @@ func _begin_level(n: int, is_daily: bool, data: Dictionary, mechanic: String, in
 	line_streak = 0
 	_reset_note_streak()
 	level_score = 0
-	undos_used = 0
+	# Сердца (20.1a): обычный уровень — с флага hearts_from_level, задача дня — всегда, «Лаборатория» — без предела.
+	hearts.reset(Hearts.max_for(n, is_daily, not mechanic.is_empty(), YSDK.hearts(), YSDK.hearts_from_level()))
 	toast.dismiss()
 	chapter_card.clear()
 	win_panel.hide()
@@ -306,8 +315,8 @@ func update_hud() -> void:
 	else:
 		header.show_values(level, hud_score(), tr("ЗАДАЧА ДНЯ") if daily_mode else "")
 	remaining_label.text = tr("Осталось блоков: %d") % tray.remaining_count()
-	undo_button.disabled = finished or moves.is_empty()
-	hint_button.disabled = finished
+	hearts_bar.show_hearts(hearts.left, hearts.max_hearts)
+	hint_button.disabled = finished or hearts.is_out()
 	# Значок на подсказке (13.2b): счётчик бесплатных, когда кончились — «реклама», без рекламы — ничего.
 	var free := hints.free_left()
 	hint_counter.visible = not finished and free > 0
@@ -336,10 +345,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
 		_on_pause_pressed()
-	# Клавиши — по месту на клавиатуре (Desktop.key_pressed): работают в любой раскладке.
-	elif (Desktop.key_pressed(k, KEY_Z) and k.is_command_or_control_pressed()) or Desktop.key_pressed(k, KEY_BACKSPACE):
-		get_viewport().set_input_as_handled()
-		_on_undo_pressed()
+	# Клавиши — по месту на клавиатуре (Desktop.key_pressed): работают в любой раскладке. Ctrl+Z и Backspace
+	# (отмена хода) убраны вместе с отменой (20.1a).
 	elif Desktop.key_pressed(k, KEY_H):
 		get_viewport().set_input_as_handled()
 		hints.request()
@@ -362,20 +369,24 @@ func _process(delta: float) -> void:
 	tray.breathe(delta, _can_breathe())
 
 
-## Лотку можно «дышать» в простое (14.6e): уровень идёт, окна паузы и победы нет, тупика нет (там ждём отмену —
-## дыхание звало бы к блокам), блок не держат, рука-обучение не показывает ход, нет шторки, рекламы и скрытой
+## Лотку можно «дышать» в простое (14.6e): уровень идёт, окна паузы и победы нет, ошибочный блок не возвращается
+## и сердца не кончились (20.1a), блок не держат, рука-обучение не показывает ход, нет шторки, рекламы и скрытой
 ## вкладки. Пока нельзя — простой не копится: дыхание начнётся через idle_after после того, как снова можно.
 func _can_breathe() -> bool:
-	return not finished and not paused and not dead_end and not _next_pending and not drag.is_busy() \
+	return can_play() and not paused and _mistake.is_empty() and not _next_pending and not drag.is_busy() \
 			and not hints.ad_pending and not tutorial_hand.visible and not Transition.is_busy() \
 			and not GameState.is_audio_suspended()
 
 
 # --- Ходы ---------------------------------------------------------------------
 
-## Игрок сам поставил блок перетаскиванием (подсказка ставит через commit_place).
+## Игрок сам поставил блок перетаскиванием (подсказка ставит через commit_place). Ход заводит в тупик — ошибка
+## (20.1a, _on_mistake): ход не засчитан, сердце сгорает.
 func _on_dropped(b: Block, i: int, r: Rect2i) -> void:
 	Analytics.run_move()  # первый свой ход попытки — first_move (16.1); подсказка сюда не идёт
+	if leads_to_dead_end(r, b.cells):
+		_on_mistake(b, i, r)
+		return
 	commit_place(b, i, r)
 	coach.on_own_move(r)
 
@@ -409,7 +420,7 @@ func commit_place(b: Block, i: int, r: Rect2i, float_time := 0.0) -> void:
 	if board.is_full():
 		_on_level_complete(maxf(0.0, float_time - Block.cfg().land_time) if floating else 0.0)
 	else:
-		_after_move(b)
+		_after_move()
 
 
 ## Блок долетел до места (Board.landed, 14.2): удар — звук, тряска, пыль из-под краёв. Закрыл линии (14.4) —
@@ -473,7 +484,8 @@ func _reset_note_streak() -> void:
 	_last_note_ms = -1000000
 
 
-## Снимает последний ход: блок возвращается в свой слот, вытянутый после него — в очередь.
+## Снимает последний засчитанный ход: блок возвращается в свой слот, вытянутый после него — в очередь. Отмены хода
+## у игрока нет (20.1a) — так игра выходит из «нет ходов» (_after_move) и самопроверка готовит позиции.
 func undo_last() -> void:
 	coach.postpone()
 	_reset_note_streak()
@@ -486,66 +498,111 @@ func undo_last() -> void:
 	tray.put_back(b, int(m.slot), bool(m.drawn))
 
 
-## Проверка после хода: можно ли ещё заполнить поле оставшимися блоками.
-func _after_move(placed: Block) -> void:
+## Проверка после засчитанного хода. Тупиковый свой ход сюда не доходит (_on_dropped → _on_mistake), подсказка ставит
+## только из решения. Остаётся случай, когда решатель не уложился в лимит (на уровнях игры такого нет — максимум
+## 216 шагов из 4000): если ни один блок лотка больше никуда не встаёт, последний ход снимается — без сердца.
+func _after_move() -> void:
 	var s := solve(placed_rects(), remaining_pieces())
-	if s.status == ShikakuSolver.UNSOLVABLE:
-		if not dead_end:
-			dead_end = true
-			Analytics.run_dead_end()
-			_reset_note_streak()
-			coach.on_dead_end()
-			placed.warn(0.45)
-			var t := create_tween()
-			t.tween_interval(0.45)
-			t.tween_callback(_play_dead_end.bind(placed, session))
-		else:
-			Fx.hop(undo_button)
-		toast.show_text(tr("Тупик: так поле не заполнить. Отмени ход"), 0.0)
-	elif s.status == ShikakuSolver.SOLVED:
-		if dead_end:
-			dead_end = false
-			toast.dismiss()
-	elif tray.is_stuck(board):  # решатель не уложился в лимит — простая проверка
-		toast.show_text(tr("Нет ходов! Отмени ошибку"), 0.0)
-		Fx.hop(undo_button)
+	if s.status == ShikakuSolver.UNKNOWN and tray.is_stuck(board):
+		undo_last()
+		Audio.play(Audio.MISS)
+		toast.show_text(tr("Так остальные блоки не поместятся"), 2.5)
+		update_hud()
+
+
+# --- Сердца и ошибки (20.1a) ----------------------------------------------------
+
+## Можно ходить: уровень идёт и сердца не кончились (пауза, блок в руке — отдельно).
+func can_play() -> bool:
+	return not finished and not hearts.is_out()
+
+
+## Ошибочный блок ещё на поле — трескается и сейчас вернётся в гнездо.
+func has_mistake() -> bool:
+	return not _mistake.is_empty()
+
+
+## Ошибка (20.1a): блок b из гнезда i лёг на место r, после которого поле не заполнить. Сердце сгорает сразу —
+## в кадре хода (14.8: эффекты логику не держат); ход не засчитан: ни очков, ни линий, гнездо остаётся пустым,
+## серии обнуляются. Блок ложится (удар, «нота»), через 0,45 с предупреждение — тряска и красный, затем трещина,
+## звук ошибки и темнота поля (_play_dead_end), через MISTAKE_RETURN — сам обратно в гнездо (_return_mistake).
+## Подпись объясняет причину. Последнее сердце — поле стоит (_on_hearts_out) после возврата блока.
+func _on_mistake(b: Block, i: int, r: Rect2i) -> void:
+	coach.postpone()
+	flush_mistake()
+	tray.clear_slot(i)
+	board.place_block(b, r)
+	_mistake = {"block": b, "slot": i, "rect": r}
+	hearts.lose()
+	Analytics.run_dead_end()
+	_reset_note_streak()
+	line_streak = 0
+	b.warn(0.45)
+	var t := create_tween()
+	t.tween_interval(0.45)
+	t.tween_callback(_play_dead_end.bind(b, session))
+	t.tween_interval(maxf(MISTAKE_RETURN - 0.45, 0.0))
+	t.tween_callback(_return_mistake.bind(b, session))
+	toast.show_text(tr("Так остальные блоки не поместятся"), 2.5)
+	update_hud()
 
 
 ## Тупик (14.6g), в миг предупреждения неверного блока (0,45 с после хода — он уже лёг): звук ошибки, поле на миг
-## темнеет, блок трескается (трещина — пока его не отменят), лицо кнопки отмены дважды подпрыгивает. Ход уже
-## отменён или уровень сменился — ничего.
+## темнеет, блок трескается, сердца вздрагивают. Блок уже вернулся (нажатие на лоток, подсказка) или уровень
+## сменился — ничего.
 func _play_dead_end(placed: Block, at_session: int) -> void:
-	if at_session != session or not dead_end or not is_instance_valid(placed) \
+	if at_session != session or _mistake.get("block") != placed or not is_instance_valid(placed) \
 			or placed.get_parent() != board.blocks_root:
 		return
 	Audio.play(Audio.ERROR, 0.0, 1.0)
 	board.dim_flash()
 	placed.crack()
-	Fx.hop(undo_button)
+	Fx.hop(hearts_bar)
 
 
-## «Отмена» сейчас сработает: уровень идёт, не пауза, блок не в руке, есть ход. Эффекты ввод не держат (14.8c).
-func can_undo() -> bool:
-	return not (finished or paused or drag.is_busy() or moves.is_empty())
+## Таймер ошибки: блок placed всё ещё на поле — вернуть его в гнездо.
+func _return_mistake(placed: Block, at_session: int) -> void:
+	if at_session == session and _mistake.get("block") == placed:
+		flush_mistake()
 
 
-func _on_undo_pressed() -> void:
-	if not can_undo():
+## Ошибочный блок — сразу в своё гнездо (по таймеру или потому, что игрок уже взялся за лоток или подсказку):
+## поле снова как до ошибки. Сердца кончились — поле встаёт (_on_hearts_out).
+func flush_mistake() -> void:
+	if _mistake.is_empty():
 		return
-	undos_used += 1
-	Analytics.run_undo()
-	undo_last()
-	coach.on_undo()
-	Audio.play(Audio.UNDO)
-	toast.dismiss()
-	if dead_end:
-		var s := solve(placed_rects(), remaining_pieces())
-		if s.status == ShikakuSolver.UNSOLVABLE:
-			toast.show_text(tr("Всё ещё тупик — отмени ещё ход"), 0.0)
-			Fx.hop(undo_button)
-		else:
-			dead_end = false
+	var b: Block = _mistake.block
+	var i: int = _mistake.slot
+	_mistake = {}
+	if is_instance_valid(b):
+		board.remove_block(b)
+		b.clear_warn()
+		tray.put_back(b, i, false)
 	update_hud()
+	if hearts.is_out():
+		_on_hearts_out()
+
+
+## Сердца кончились: ходить и брать подсказку нельзя (can_play), пауза и «Заново» работают. До окна 20.1b
+## («Продолжить» за рекламу / «Заново») — подпись и прыжок кнопки «Заново».
+func _on_hearts_out() -> void:
+	drag.cancel()
+	toast.show_text(tr("Сердца кончились — начни заново"), 0.0)
+	Fx.hop(restart_button)
+	update_hud()
+
+
+## Возрождение (20.1b вызовет из окна): +1 сердце, поле как есть; звёзд за уровень — 1. free — бесплатное
+## продолжение (реклама не показалась). false — сейчас нельзя (сердца не кончились или возрождения исчерпаны).
+func revive(free := false) -> bool:
+	if finished or not hearts.can_revive(YSDK.revive_max()):
+		return false
+	if free and not hearts.can_continue_free(YSDK.revive_free_on_fail()):
+		return false
+	hearts.revive(free)
+	toast.dismiss()
+	update_hud()
+	return true
 
 
 # --- Решатель -------------------------------------------------------------------
@@ -587,12 +644,11 @@ func _on_level_complete(later := 0.0) -> void:
 	finished = true
 	win_at = WIN_SHOW_AT + later
 	coach.on_level_complete()
-	dead_end = false
+	_mistake = {}
 	toast.dismiss()
 	chapter_card.dismiss()
 	YSDK.gameplay_stop()
-	var penalty := undos_used + hints.used * 2
-	var stars := 3 if penalty == 0 else (2 if penalty <= 3 else 1)
+	var stars := hearts.stars(hints.used)  # 20.1a: 3 − ошибки − подсказки, не ниже 1; после возрождения — 1
 	level_score += 50 * stars
 	var earned := level_score
 	# Засчитываем уровень сразу, а не после празднования: иначе выход в меню,

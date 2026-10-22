@@ -13,7 +13,8 @@ extends Node
 ##     Навык пройден вместе с уровнем.
 ##   Уровни 1..Tutorial.GUARD_LEVELS: подпись над полем (CoachLabel) — навык уровня
 ##     или правило, а пока блок над красным местом — причина одной строкой.
-##   Первый тупик без страховки (UNDO): поле тускнеет, рука жмёт на «Отмена».
+##   Урок отмены (UNDO: первый тупик — поле тускнеет, рука жмёт на «Отмена») убран вместе с отменой (20.1a);
+##     про сердца на уровне 4 — 20.1d.
 ##   Долгий простой на уровнях Tutorial.HINT_FROM..HINT_TO (HINT): пульс кнопки подсказки,
 ##     пока игрок ни разу ей не воспользовался.
 ## Любое нажатие прячет руку и начинает отсчёт простоя заново.
@@ -31,11 +32,6 @@ const TURN_DELAY := 0.35
 const REASON_HOLD := 2.5
 ## Раскладка экрана поменялась посреди жеста руки: через сколько секунд показать его заново.
 const RELAYOUT_DELAY := 0.3
-## Первый тупик без страховки: через сколько секунд рука показывает на «Отмена».
-const UNDO_DELAY := 0.8
-## Притушенное поле (учим отмене).
-const DIM_COLOR := Color(0.55, 0.55, 0.62)
-const DIM_TIME := 0.25
 const CAPTION_COLOR := Color(1, 1, 1, 0.95)
 const REASON_COLOR := Color(1.0, 0.64, 0.64)
 
@@ -51,8 +47,6 @@ var preview_shown: bool = false
 var idle: float = 0.0
 ## Своих ходов на уровне (перетаскиванием; подсказки не в счёт).
 var own_moves: int = 0
-## Поле притушено: первый тупик без страховки, рука показывает на «Отмена».
-var dimmed: bool = false
 ## Кнопку подсказки на этом уровне уже предлагали.
 var hint_offered: bool = false
 
@@ -66,7 +60,6 @@ var _pair_done: bool = false
 ## Слот, чей ход рука покажет первым (блок, который не удалось поставить без поворота).
 var _focus_slot: int = -1
 var _reason_left: float = 0.0
-var _dim_tween: Tween
 var _game: Game
 var _hand: TutorialHand
 var _label: Label
@@ -89,7 +82,6 @@ func setup(game: Game) -> void:
 ## «Дальше — сам!» на уровне 4 убран — «обучение кончилось и всё»).
 func restart(level: int) -> void:
 	stop()
-	_undim(true)
 	skill = Tutorial.skill_for_level(level, GameState.tutorial)
 	_caption_skill = skill
 	countdown = FIRST_DELAY if _quick_hand() else LONG_IDLE
@@ -134,20 +126,14 @@ func tick(delta: float) -> void:
 		_reason_left -= delta
 		if _reason_left <= 0.0:
 			show_caption()
-	if dimmed and not g.dead_end:
-		_undim(false)  # тупик снят (отмена, откат подсказкой)
-	if g.drag.is_busy():
+	if g.drag.is_busy() or not g.can_play():
 		return
 	idle += delta
 	if not hint_offered and idle >= Tutorial.HINT_IDLE and _can_offer_hint():
 		_offer_hint()
 	if _hand.visible:
 		return
-	if dimmed:
-		countdown -= delta
-		if countdown <= 0.0:
-			_show_undo()
-	elif skill != 0:
+	if skill != 0:
 		countdown -= delta
 		if countdown <= 0.0:
 			_show()
@@ -165,37 +151,18 @@ func on_own_move(r := Rect2i()) -> void:
 		countdown = LONG_IDLE
 
 
-## Ход завёл в тупик (Game._after_move). Без страховки в первый раз учим отмене.
-func on_dead_end() -> void:
-	if dimmed or _game.level <= Tutorial.GUARD_LEVELS or GameState.has_skill(Tutorial.UNDO):
-		return
-	stop()
-	dimmed = true
-	countdown = UNDO_DELAY
-	_tween_board(DIM_COLOR)
-
-
-## Игрок нажал «Отмена» (Game._on_undo_pressed).
-func on_undo() -> void:
-	if dimmed:
-		GameState.learn(Tutorial.UNDO)
-		_undim(false)
-
-
-## Уровень пройден: навык уровня засчитан, рука и притушенное поле убраны.
+## Уровень пройден: навык уровня засчитан, рука убрана.
 func on_level_complete() -> void:
 	stop()
-	_undim(false)
 	if skill != 0:
 		_learn_level_skill()
 
 
 ## Верный ход для руки: {slot, rect} или {}. Сначала ход без поворота, а на уроке
-## поворота (ROTATE) — блок, который встанет только повёрнутым. В тупике хода нет —
-## там уже висит подсказка «отмени ход».
+## поворота (ROTATE) — блок, который встанет только повёрнутым. Пока ошибочный блок на поле (20.1a) — хода нет.
 func next_move() -> Dictionary:
 	var g := _game
-	if g.dead_end:
+	if g.has_mistake():
 		return {}
 	var s := g.solve(g.placed_rects(), g.remaining_pieces())
 	if s.status == ShikakuSolver.UNSOLVABLE:
@@ -285,8 +252,6 @@ func _show_reason(text: String) -> void:
 
 
 func _repeat_delay() -> float:
-	if dimmed:
-		return IDLE_DELAY
 	return IDLE_DELAY if _quick_hand() else LONG_IDLE
 
 
@@ -335,7 +300,7 @@ func _show() -> void:
 ## Сначала место без поворота.
 func _move_for_slot(i: int) -> Dictionary:
 	var g := _game
-	if g.tray.blocks[i] == null or g.dead_end:
+	if g.tray.blocks[i] == null or g.has_mistake():
 		return {}
 	var s := g.solve(g.placed_rects(), g.remaining_pieces())
 	if s.status != ShikakuSolver.SOLVED:
@@ -405,37 +370,12 @@ func _on_hint_used(_level: int) -> void:
 func _can_offer_hint() -> bool:
 	var g := _game
 	return g.level >= Tutorial.HINT_FROM and g.level <= Tutorial.HINT_TO \
-			and not g.dead_end and not GameState.has_skill(Tutorial.HINT)
+			and not g.has_mistake() and not GameState.has_skill(Tutorial.HINT)
 
 
 func _offer_hint() -> void:
 	hint_offered = true
 	Fx.pulse(_game.hint_button)
-
-
-func _show_undo() -> void:
-	countdown = IDLE_DELAY
-	_hand.tap(_game.undo_button.get_global_rect().get_center(), 2)
-
-
-func _undim(instant: bool) -> void:
-	var was := dimmed
-	dimmed = false
-	if was and _hand.visible:
-		_hand.stop()  # рука показывала на «Отмена»
-	if instant:
-		if _dim_tween and _dim_tween.is_valid():
-			_dim_tween.kill()
-		_game.board.modulate = Color.WHITE
-	elif was:
-		_tween_board(Color.WHITE)
-
-
-func _tween_board(color: Color) -> void:
-	if _dim_tween and _dim_tween.is_valid():
-		_dim_tween.kill()
-	_dim_tween = create_tween()
-	_dim_tween.tween_property(_game.board, "modulate", color, DIM_TIME)
 
 
 func _on_hand_arrived() -> void:

@@ -21,23 +21,11 @@ msgstr "Süper!"
 msgid "Невероятно!"
 msgstr "İnanılmaz!"
 
-msgid "Тупик: так поле не заполнить. Отмени ход"
-msgstr "Çıkmaz: tahta artık dolmaz. Hamleyi geri al"
-
-msgid "Нет ходов! Отмени ошибку"
-msgstr "Hamle yok! Hatayı geri al"
-
-msgid "Всё ещё тупик — отмени ещё ход"
-msgstr "Hâlâ çıkmaz — bir hamle daha geri al"
+msgid "Сердца кончились — начни заново"
+msgstr "Canın kalmadı — baştan başla"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "İpucu için reklamı izle"
-
-msgid "Сначала отмени ошибочный ход"
-msgstr "Önce hatalı hamleyi geri al"
-
-msgid "Подсказка: убраны неверные блоки (%d)"
-msgstr "İpucu: hatalı bloklar kaldırıldı (%d)"
 
 msgid "Число — это размер блока. Перетащи блок на его число"
 msgstr "Sayı, bloğun boyutudur. Her bloğu kendi sayısına sürükle"

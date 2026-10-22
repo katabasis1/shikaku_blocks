@@ -136,7 +136,7 @@ python3 tools/style_a3.py                     # A3 + palette.png -> docs/style_f
 
 ## A2 — доведённый «Мармелад» (01.10, заменён A3)
 
-Выбран A, но «местами корявый». A2 исправляет 13 слабых мест из PROGRESS.md (12.3b) под пожелания:
+Выбран A, но «местами корявый». A2 исправляет 13 слабых мест из PROGRESS.md (12.3b; с 23.10 — `docs/log/stages_00-13.md`) под пожелания:
 скруглённые формы, насыщенные цвета, мягкие тени, глянец, polished casual, playful cartoon.
 Рисует `tools/style_a2.py` (общие примитивы — из `tools/style_frames.py`).
 

@@ -10,7 +10,7 @@
 объявлены, у узлов есть родители.
 project.godot: скрипты автозагрузок, главная сцена / иконка / тема, файлы
 переводов, пустое поле Locale → Test (оно задаётся только для проверки en / tr
-в редакторе); .gdignore в docs/ и music_src/.
+в редакторе); .gdignore в docs/ и music_src/. PROGRESS.md не больше 40 КБ (20.0c).
 JuiceConfig (14.8a): каждое число — ровно в одном из списков OFF и
 KEEP_ON_OFF, тип значения в OFF — как у числа.
 Вывод типа (var x := …): в выражении нет значения без типа (поле словаря
@@ -242,6 +242,14 @@ if m and m.group(1).strip():
 for folder in ("docs", "music_src"):
     if (ROOT / folder).is_dir() and not (ROOT / folder / ".gdignore").is_file():
         problem(folder, 0, "нет .gdignore — папка попадёт в импорт и сборку")
+
+# Корневой PROGRESS.md (20.0c, 23.10): агент новой сессии должен прочитать его целиком. 22.10 он дорос до 518 КБ —
+# закрытые этапы и старый лог ушли в docs/log/. Предел — PROGRESS_MAX_KB; вырос — перенесите туда же.
+PROGRESS_MAX_KB = 40
+_progress = ROOT / "PROGRESS.md"
+if _progress.is_file() and _progress.stat().st_size > PROGRESS_MAX_KB * 1024:
+    problem("PROGRESS.md", 0, "%d КБ > %d КБ — закрытые пункты и старые записи лога перенесите в docs/log/ "
+            "(оглавление — docs/log/README.md)" % (_progress.stat().st_size // 1024, PROGRESS_MAX_KB))
 
 # «Без эффектов» (14.8a): каждое число JuiceConfig (@export в scripts/juice_config.gd) — ровно в одном из списков
 # OFF (значение «эффекта нет») и KEEP_ON_OFF (не трогать); значение в OFF — того же типа, что число (Tween не примет

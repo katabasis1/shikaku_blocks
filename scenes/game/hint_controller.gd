@@ -1,13 +1,14 @@
 class_name HintController
 extends Node
 ## Подсказка: FREE_PER_LEVEL бесплатно на уровень, дальше — за rewarded-рекламу
-## (только в Яндекс Играх). Ставит блок на место из решения от текущей расстановки;
-## в тупике откатывает неверные ходы до последнего решаемого состояния.
+## (только в Яндекс Играх). Ставит блок на место из решения от текущей расстановки. Тупика на поле не бывает
+## (20.1a: ошибочный блок сам возвращается в лоток), поэтому и откатывать нечего; ошибочный блок, который ещё
+## трескается, подсказка сначала возвращает (Game.flush_mistake).
 
 ## Бесплатных подсказок на уровень по умолчанию. YSDK может заменить число remote flag-ом.
 const FREE_PER_LEVEL := 1
 
-## Сколько подсказок взято на этом уровне (каждая — минус 2 к «штрафу» звёзд).
+## Сколько подсказок взято на этом уровне (каждая — минус звезда, не ниже 1: Hearts.stars).
 var used: int = 0
 ## Ждём ответа рекламы за подсказку.
 var ad_pending: bool = false
@@ -37,11 +38,11 @@ func needs_ad() -> bool:
 	return YSDK.is_rewarded_available() and used >= YSDK.free_hints_per_level()
 
 
-## Нажатие «Подсказки» сейчас сработает: уровень идёт, не пауза, блок не в руке, реклама не ждёт ответа.
-## Эффекты ввод не держат (14.8c).
+## Нажатие «Подсказки» сейчас сработает: уровень идёт и сердца не кончились (Game.can_play), не пауза, блок не
+## в руке, реклама не ждёт ответа. Эффекты ввод не держат (14.8c).
 func can_request() -> bool:
 	var g := _game
-	return not (g.finished or g.paused or g.drag.is_busy() or ad_pending)
+	return g.can_play() and not (g.paused or g.drag.is_busy() or ad_pending)
 
 
 ## Кнопка подсказки или клавиша H.
@@ -56,25 +57,24 @@ func request() -> void:
 	give()
 
 
-## Подсказка без проверки рекламы: поставить верный блок или откатить тупик. paid — после рекламы за награду
+## Подсказка без проверки рекламы: поставить верный блок. paid — после рекламы за награду
 ## (Метрика, 16.1: цель hint — "ad" или "free").
 func give(paid := false) -> void:
 	var g := _game
-	if g.finished or g.drag.is_busy():
+	if g.drag.is_busy():
+		return
+	g.flush_mistake()  # ошибочный блок ещё на поле — сначала в гнездо
+	if not g.can_play():
 		return
 	_paid = paid
 	var s := g.solve(g.placed_rects(), g.remaining_pieces())
-	if s.status == ShikakuSolver.UNSOLVABLE:
-		_rollback()
-		return
 	if s.status == ShikakuSolver.SOLVED and _place(s.solution):
 		return
 	# Решатель не уложился в лимит (на уровнях игры такого не бывает) — эталонное решение.
 	if _place(g.level_data.solution):
 		return
-	Audio.play(Audio.ERROR)
-	g.toast.show_text(tr("Сначала отмени ошибочный ход"), 2.5)
-	Fx.hop(g.undo_button)
+	Audio.play(Audio.MISS)  # ставить нечего (поле разошлось с эталоном, а решатель не успел)
+	Fx.hop(g.hint_button)
 
 
 func _on_ad_finished(rewarded: bool, session: int) -> void:
@@ -113,28 +113,6 @@ func _place(rects: Array) -> bool:
 	if ft > 0.0 and not GameState.reduce_motion:
 		HintSpark.fly(g.fx_layer, from, g.board.cell_center_global(r), ft, 0.0, g.juice, g.board.holds.bind(b, r))
 	return true
-
-
-## Тупик: откатываем ходы до последнего состояния, из которого поле ещё решается.
-func _rollback() -> void:
-	var g := _game
-	var pieces := g.remaining_pieces()
-	var k := 0
-	while k < g.moves.size():
-		k += 1
-		var m: Dictionary = g.moves[g.moves.size() - k]
-		pieces.append((m.block as Block).cells)
-		if g.solve(g.placed_rects(k), pieces).status != ShikakuSolver.UNSOLVABLE:
-			break
-	if k == 0:
-		return
-	_use()
-	for _j in k:
-		g.undo_last()
-	g.dead_end = false
-	Audio.play(Audio.UNDO)
-	g.toast.show_text(tr("Подсказка: убраны неверные блоки (%d)") % k, 2.5)
-	g.update_hud()
 
 
 func _use() -> void:

@@ -32,12 +32,21 @@ const DAILY_LEADERBOARD_NAME := "daily_streak"
 const DEFAULT_INTERSTITIAL_FROM_LEVEL := 4
 const DEFAULT_INTERSTITIAL_INTERVAL_MS := 90000
 const DEFAULT_FREE_HINTS_PER_LEVEL := 1
+## Сердца (20.1a, PLAN 20.1): сколько на попытку уровня (0 — без предела: сердец не видно, ошибки считаются, звёзды
+## 3 − ошибки), с какого уровня основного пути (раньше — обучение со страховкой; задача дня — всегда с сердцами),
+## сколько возрождений за попытку и можно ли один раз продолжить бесплатно, если реклама не показалась (1 / 0).
+const DEFAULT_HEARTS := 3
+const DEFAULT_HEARTS_FROM_LEVEL := 4
+const DEFAULT_REVIVE_MAX := 3
+const DEFAULT_REVIVE_FREE_ON_FAIL := 1
 ## Пределы флагов Remote Config (16.2a): значение вне пределов прижимается к краю, не число — значение по умолчанию.
 const FLAG_FROM_LEVEL_MIN := 1
 const FLAG_FROM_LEVEL_MAX := 1000
 const FLAG_INTERVAL_MS_MIN := 60000  # чаще раза в минуту Яндекс межстраничную всё равно не покажет
 const FLAG_INTERVAL_MS_MAX := 3600000
 const FLAG_FREE_HINTS_MAX := 5
+const FLAG_HEARTS_MAX := 5
+const FLAG_REVIVE_MAX := 10
 ## Сама игра просит оценку в момент победы на уровнях REVIEW_FROM_LEVEL..REVIEW_TO_LEVEL (12.10b: было 5–7 — слишком
 ## рано, игрок ещё не втянулся). Раньше — только кнопка «Оценить игру» в настройках (после обучения).
 const REVIEW_FROM_LEVEL := 11
@@ -257,6 +266,10 @@ var _last_interstitial_ms: int = 0
 var interstitial_from_level: int = DEFAULT_INTERSTITIAL_FROM_LEVEL
 var interstitial_interval_ms: int = DEFAULT_INTERSTITIAL_INTERVAL_MS
 var _free_hints: int = DEFAULT_FREE_HINTS_PER_LEVEL
+var _hearts: int = DEFAULT_HEARTS
+var _hearts_from_level: int = DEFAULT_HEARTS_FROM_LEVEL
+var _revive_max: int = DEFAULT_REVIVE_MAX
+var _revive_free_on_fail: bool = DEFAULT_REVIVE_FREE_ON_FAIL != 0
 var flags_ready: bool = false
 ## Запрос оценки (requestReview) в этой сессии ушёл: Яндекс даёт один. Гостю (ответ NO_AUTH) окна не было — запрос
 ## не потрачен, флаг снимается.
@@ -669,6 +682,26 @@ func free_hints_per_level() -> int:
 	return _free_hints
 
 
+## Сердец на попытку (флаг hearts, 20.1a): 1..FLAG_HEARTS_MAX; 0 — без предела. Game читает в начале уровня.
+func hearts() -> int:
+	return _hearts
+
+
+## С какого уровня основного пути сердца (флаг hearts_from_level). Задача дня — с сердцами всегда.
+func hearts_from_level() -> int:
+	return _hearts_from_level
+
+
+## Возрождений за попытку уровня (флаг revive_max): 0 — сердца кончились, остаётся только «Заново».
+func revive_max() -> int:
+	return _revive_max
+
+
+## Реклама за возрождение не показалась — один раз за попытку продолжить бесплатно (флаг revive_free_on_fail).
+func revive_free_on_fail() -> bool:
+	return _revive_free_on_fail
+
+
 ## Один запрос за сессию; запомнится (GameState.review_prompted) по ответу — событие review. true — запрос ушёл.
 func _request_review() -> bool:
 	if not is_available or _bridge == null or _review_requested_this_session:
@@ -725,6 +758,10 @@ static func flag_defaults() -> Dictionary:
 		"interstitial_from_level": str(DEFAULT_INTERSTITIAL_FROM_LEVEL),
 		"interstitial_interval_ms": str(DEFAULT_INTERSTITIAL_INTERVAL_MS),
 		"free_hints_per_level": str(DEFAULT_FREE_HINTS_PER_LEVEL),
+		"hearts": str(DEFAULT_HEARTS),
+		"hearts_from_level": str(DEFAULT_HEARTS_FROM_LEVEL),
+		"revive_max": str(DEFAULT_REVIVE_MAX),
+		"revive_free_on_fail": str(DEFAULT_REVIVE_FREE_ON_FAIL),
 	}
 
 
@@ -748,4 +785,9 @@ func _apply_flags(data: Variant) -> void:
 	interstitial_interval_ms = flag_int(flags, "interstitial_interval_ms", DEFAULT_INTERSTITIAL_INTERVAL_MS,
 			FLAG_INTERVAL_MS_MIN, FLAG_INTERVAL_MS_MAX)
 	_free_hints = flag_int(flags, "free_hints_per_level", DEFAULT_FREE_HINTS_PER_LEVEL, 0, FLAG_FREE_HINTS_MAX)
+	_hearts = flag_int(flags, "hearts", DEFAULT_HEARTS, 0, FLAG_HEARTS_MAX)
+	_hearts_from_level = flag_int(flags, "hearts_from_level", DEFAULT_HEARTS_FROM_LEVEL,
+			FLAG_FROM_LEVEL_MIN, FLAG_FROM_LEVEL_MAX)
+	_revive_max = flag_int(flags, "revive_max", DEFAULT_REVIVE_MAX, 0, FLAG_REVIVE_MAX)
+	_revive_free_on_fail = flag_int(flags, "revive_free_on_fail", DEFAULT_REVIVE_FREE_ON_FAIL, 0, 1) != 0
 	flags_ready = true

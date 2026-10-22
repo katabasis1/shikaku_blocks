@@ -12,7 +12,7 @@
 
 [ext_resource type="Texture2D" path="res://assets/icons/restart.png" id="6_restart"]
 
-[ext_resource type="Texture2D" path="res://assets/icons/undo.png" id="7_undo"]
+[ext_resource type="Script" path="res://scenes/game/hearts_bar.gd" id="7_hearts"]
 
 [ext_resource type="Texture2D" path="res://assets/icons/hint.png" id="8_hint"]
 
@@ -211,23 +211,13 @@ offset_right = -28.0
 offset_bottom = -290.0
 theme_override_constants/separation = 14
 
-[node name="UndoButton" type="Button" parent="Content/ActionsBar"]
+[node name="HeartsBar" type="Control" parent="Content/ActionsBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(96, 96)
-layout_mode = 2
-size_flags_vertical = 4
-pivot_offset = Vector2(48, 48)
-focus_mode = 0
-theme_type_variation = &"CandyButton"
-icon = ExtResource("7_undo")
-icon_alignment = 1
-expand_icon = true
-script = ExtResource("18_candy")
-
-[node name="Spacer" type="Control" parent="Content/ActionsBar"]
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
+script = ExtResource("7_hearts")
 
 [node name="HintButton" type="Button" parent="Content/ActionsBar"]
 unique_name_in_owner = true
