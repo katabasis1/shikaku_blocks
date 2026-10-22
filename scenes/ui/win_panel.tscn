@@ -1,0 +1,156 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/win_panel.gd" id="1_win"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/star.png" id="2_star"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/restart.png" id="3_replay"]
+
+[ext_resource type="Script" path="res://scripts/candy_card.gd" id="4_card"]
+
+[ext_resource type="Script" path="res://scripts/pill_button.gd" id="5_pill"]
+
+[node name="WinPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_win")
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 20.0
+offset_top = 50.0
+offset_right = 700.0
+offset_bottom = 138.0
+mouse_filter = 2
+theme_type_variation = &"WinTitle"
+text = "УРОВЕНЬ 1 ПРОЙДЕН!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Card" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 104.0
+offset_top = 786.0
+offset_right = 616.0
+offset_bottom = 1214.0
+theme_type_variation = &"CandyCardFlat"
+script = ExtResource("4_card")
+head_style = 1
+
+[node name="Content" type="Control" parent="Card"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Head" type="Label" parent="Card/Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 34.0
+offset_right = 500.0
+offset_bottom = 98.0
+mouse_filter = 2
+theme_type_variation = &"WinHead"
+text = "ИДЕАЛЬНО!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreStar" type="TextureRect" parent="Card/Content"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_right = 50.0
+offset_bottom = 50.0
+mouse_filter = 2
+texture = ExtResource("2_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ScoreLabel" type="Label" parent="Card/Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 66.0
+mouse_filter = 2
+theme_type_variation = &"WinScore"
+text = "+0"
+vertical_alignment = 1
+
+[node name="TotalLabel" type="Label" parent="Card/Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 190.0
+offset_right = 496.0
+offset_bottom = 234.0
+mouse_filter = 2
+theme_type_variation = &"CardText"
+theme_override_font_sizes/font_size = 27
+text = "Всего очков: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="NextButton" type="Button" parent="Card/Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 66.0
+offset_top = 245.0
+offset_right = 446.0
+offset_bottom = 355.0
+pivot_offset = Vector2(190, 55)
+focus_mode = 0
+text = "ДАЛЕЕ"
+script = ExtResource("5_pill")
+
+[node name="ReplayButton" type="Button" parent="Card/Content"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_left = 46.0
+offset_top = 368.0
+offset_right = 466.0
+offset_bottom = 416.0
+focus_mode = 0
+theme_type_variation = &"CardLink"
+text = "Переиграть уровень"
+icon = ExtResource("3_replay")
+alignment = 1
+
+[node name="Star1" type="TextureRect" parent="Card/Content"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_right = 100.0
+offset_bottom = 100.0
+mouse_filter = 2
+texture = ExtResource("2_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star2" type="TextureRect" parent="Card/Content"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_right = 136.0
+offset_bottom = 136.0
+mouse_filter = 2
+texture = ExtResource("2_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star3" type="TextureRect" parent="Card/Content"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_right = 100.0
+offset_bottom = 100.0
+mouse_filter = 2
+texture = ExtResource("2_star")
+expand_mode = 1
+stretch_mode = 5

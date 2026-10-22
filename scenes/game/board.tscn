@@ -1,0 +1,73 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/game/board.gd" id="1_board"]
+
+[ext_resource type="Shader" path="res://shaders/board.gdshader" id="2_board_shader"]
+
+[ext_resource type="Shader" path="res://shaders/ghost.gdshader" id="3_ghost_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_frame"]
+resource_local_to_scene = true
+shader = ExtResource("2_board_shader")
+shader_parameter/frame_size = Vector2(596, 608)
+shader_parameter/grid = Vector2(4, 4)
+shader_parameter/cell = 100.0
+shader_parameter/px = 1.0
+shader_parameter/margin = 72.0
+shader_parameter/pad = 26.0
+shader_parameter/rim = 15.0
+shader_parameter/lip = 12.0
+shader_parameter/radius = 0.24
+shader_parameter/gap = 0.045
+shader_parameter/appear = 100.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ghost"]
+resource_local_to_scene = true
+shader = ExtResource("3_ghost_shader")
+shader_parameter/rect_size = Vector2(200, 100)
+shader_parameter/cell = 100.0
+shader_parameter/radius = 0.24
+shader_parameter/gap = 0.045
+shader_parameter/px = 1.0
+shader_parameter/body_alpha = 0.35
+shader_parameter/frame_px = 5.0
+shader_parameter/frame_alpha = 1.0
+
+[node name="Board" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+script = ExtResource("1_board")
+
+[node name="Frame" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_frame")
+layout_mode = 0
+offset_left = -98.0
+offset_top = -98.0
+offset_right = 498.0
+offset_bottom = 510.0
+mouse_filter = 2
+
+[node name="Cells" type="Control" parent="."]
+anchors_preset = 0
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Ghost" type="ColorRect" parent="."]
+visible = false
+material = SubResource("ShaderMaterial_ghost")
+layout_mode = 0
+offset_right = 200.0
+offset_bottom = 100.0
+mouse_filter = 2
+color = Color(1, 0.294, 0.243, 1)
+
+[node name="Blocks" type="Control" parent="."]
+anchors_preset = 0
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Fx" type="Control" parent="."]
+anchors_preset = 0
+layout_mode = 0
+mouse_filter = 2

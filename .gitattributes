@@ -1,0 +1,14 @@
+# Текст — с LF на всех системах (как рекомендует Godot), бинарные ассеты не трогать
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.wav  binary
+*.ogg  binary
+*.mp3  binary
+*.mp4  binary
+*.mid  binary
+*.ttf  binary
+*.otf  binary
+*.zip  binary

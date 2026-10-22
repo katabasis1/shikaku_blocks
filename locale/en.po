@@ -1,0 +1,289 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Shikaku Blocks\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "УРОВЕНЬ %d"
+msgstr "LEVEL %d"
+
+msgid "Осталось блоков: %d"
+msgstr "Blocks left: %d"
+
+msgid "Отлично!"
+msgstr "Great!"
+
+msgid "Супер!"
+msgstr "Super!"
+
+msgid "Невероятно!"
+msgstr "Incredible!"
+
+msgid "Тупик: так поле не заполнить. Отмени ход"
+msgstr "Dead end: the board can't be filled now. Undo the move"
+
+msgid "Нет ходов! Отмени ошибку"
+msgstr "No moves! Undo your mistake"
+
+msgid "Всё ещё тупик — отмени ещё ход"
+msgstr "Still a dead end — undo one more move"
+
+msgid "Подсказка откроется после просмотра рекламы"
+msgstr "Watch the ad to unlock the hint"
+
+msgid "Сначала отмени ошибочный ход"
+msgstr "Undo the wrong move first"
+
+msgid "Подсказка: убраны неверные блоки (%d)"
+msgstr "Hint: wrong blocks removed (%d)"
+
+msgid "Число — это размер блока. Перетащи блок на его число"
+msgstr "The number is the block's size. Drag each block onto its number"
+
+msgid "Нажми на блок, чтобы повернуть его"
+msgstr "Tap a block to rotate it"
+
+msgid "В каждом блоке — ровно одно число"
+msgstr "Each block covers exactly one number"
+
+msgid "Блок накрывает одно число, и его размер равен этому числу"
+msgstr "A block covers one number, and its size equals that number"
+
+msgid "Блоки не должны накладываться"
+msgstr "Blocks can't overlap"
+
+msgid "В блоке должно быть ровно одно число"
+msgstr "A block must cover exactly one number"
+
+msgid "Здесь нужен блок из %d клеток"
+msgstr "This spot needs a block of %d cells"
+
+msgid "Так остальные блоки не поместятся"
+msgstr "Then the other blocks won't fit"
+
+msgid "Эта клетка занята с самого начала"
+msgstr "This cell is taken from the start"
+
+msgid "Цветную клетку накрывает только блок того же цвета"
+msgstr "A colored cell takes only a block of the same color"
+
+msgid "Белые плитки — препятствия: на них блок не встанет"
+msgstr "White tiles are obstacles: blocks can't go there"
+
+msgid "Серый блок закреплён: строй вокруг него"
+msgstr "The gray block is fixed: build around it"
+
+msgid "«?» — размер неизвестен: подойдёт любой блок, но решение одно"
+msgstr "“?” hides the size: any block may fit, but only one way works"
+
+msgid "УРОВЕНЬ %d ПРОЙДЕН!"
+msgstr "LEVEL %d COMPLETE!"
+
+msgid "НОВЫЙ РЕКОРД!"
+msgstr "NEW RECORD!"
+
+msgid "ИДЕАЛЬНО!"
+msgstr "PERFECT!"
+
+msgid "ОТЛИЧНО!"
+msgstr "GREAT!"
+
+msgid "ХОРОШО!"
+msgstr "GOOD!"
+
+msgid "Всего очков: %s"
+msgstr "Total score: %s"
+
+msgid "Всего очков: %s (+%s)"
+msgstr "Total score: %s (+%s)"
+
+msgid "Рекорд уровня: %s"
+msgstr "Level record: %s"
+
+msgid "Нет ходов!"
+msgstr "No moves!"
+
+msgid "ИГРАТЬ"
+msgstr "PLAY"
+
+msgid "СЕРИЯ %d"
+msgstr "STREAK %d"
+
+msgid "СЕРИЯ %d · ГОТОВО"
+msgstr "STREAK %d · DONE"
+
+msgid "ЗАДАЧА ДНЯ"
+msgstr "DAILY PUZZLE"
+
+msgid "ЛИДЕРЫ"
+msgstr "LEADERS"
+
+msgid "Лидеры"
+msgstr "Leaderboard"
+
+msgid "ОЧКИ"
+msgstr "SCORE"
+
+msgid "СЕРИЯ"
+msgstr "STREAK"
+
+msgid "ВОЙТИ"
+msgstr "SIGN IN"
+
+msgid "Загрузка…"
+msgstr "Loading…"
+
+msgid "Пока пусто — будьте первым!"
+msgstr "Empty so far — be the first!"
+
+msgid "Игрок"
+msgstr "Player"
+
+msgid "Вы"
+msgstr "You"
+
+msgid "Таблица лидеров — в Яндекс Играх"
+msgstr "The leaderboard lives on Yandex Games"
+
+msgid "Не удалось загрузить. Проверьте интернет"
+msgstr "Couldn't load. Check your connection"
+
+msgid "Войдите, чтобы попасть в таблицу"
+msgstr "Sign in to get on the leaderboard"
+
+msgid "Пройдите задачу дня, чтобы попасть в таблицу"
+msgstr "Solve the daily puzzle to get on the board"
+
+msgid "Пройдите уровень, чтобы попасть в таблицу"
+msgstr "Complete a level to get on the board"
+
+msgid "ЕЖЕДНЕВНАЯ ЗАДАЧА ПРОЙДЕНА!"
+msgstr "DAILY PUZZLE SOLVED!"
+
+msgid "Серия: %d"
+msgstr "Streak: %d"
+
+msgid "В МЕНЮ"
+msgstr "MENU"
+
+msgid "УРОВНИ"
+msgstr "LEVELS"
+
+msgid "ДАЛЕЕ"
+msgstr "NEXT"
+
+msgid "Переиграть уровень"
+msgstr "Replay level"
+
+msgid "НАСТРОЙКИ"
+msgstr "SETTINGS"
+
+msgid "ПАУЗА"
+msgstr "PAUSE"
+
+msgid "СБРОСИТЬ ПРОГРЕСС?"
+msgstr "RESET PROGRESS?"
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Пауза"
+msgstr "Pause"
+
+msgid "ПРОДОЛЖИТЬ"
+msgstr "CONTINUE"
+
+msgid "ГОТОВО"
+msgstr "DONE"
+
+msgid "Музыка"
+msgstr "Music"
+
+msgid "Звуки"
+msgstr "Sounds"
+
+msgid "Вибрация"
+msgstr "Vibration"
+
+msgid "Сбросить прогресс"
+msgstr "Reset progress"
+
+msgid "ОЦЕНИТЬ ИГРУ"
+msgstr "RATE THE GAME"
+
+msgid "В меню"
+msgstr "Main menu"
+
+msgid "Уровни, звёзды и очки начнутся с нуля. Вернуть их будет нельзя."
+msgstr "Levels, stars and points will start from zero. This can't be undone."
+
+msgid "ОТМЕНА"
+msgstr "CANCEL"
+
+msgid "СБРОСИТЬ"
+msgstr "RESET"
+
+msgid "Меньше движения: выкл"
+msgstr "Reduce motion: off"
+
+msgid "Меньше движения: вкл"
+msgstr "Reduce motion: on"
+
+msgid "ГЛАВА %d · %s"
+msgstr "CHAPTER %d · %s"
+
+msgid "ГЛАВА %d"
+msgstr "CHAPTER %d"
+
+msgid "СУМЕРКИ"
+msgstr "TWILIGHT"
+
+msgid "ЗВЁЗДЫ"
+msgstr "STARS"
+
+msgid "ПОЛНОЧЬ"
+msgstr "MIDNIGHT"
+
+msgid "ЛУНА"
+msgstr "MOON"
+
+msgid "КОМЕТА"
+msgstr "COMET"
+
+msgid "СИЯНИЕ"
+msgstr "AURORA"
+
+msgid "ТУМАННОСТЬ"
+msgstr "NEBULA"
+
+msgid "ГАЛАКТИКА"
+msgstr "GALAXY"
+
+msgid "КОСМОС"
+msgstr "COSMOS"
+
+msgid "РАССВЕТ"
+msgstr "DAWN"
+
+msgid "Новое: длинные блоки 5 и 10"
+msgstr "New: long blocks 5 and 10"
+
+msgid "Новое: большой блок 12"
+msgstr "New: big block 12"
+
+msgid "Новое: препятствия"
+msgstr "New: obstacles"
+
+msgid "Новое: закреплённый блок"
+msgstr "New: fixed block"
+
+msgid "Новое: цветные клетки"
+msgstr "New: colored cells"
+
+msgid "Новое: число «?»"
+msgstr "New: the “?” number"
+
+msgid "Все новинки вперемешку"
+msgstr "All the new ideas, mixed"

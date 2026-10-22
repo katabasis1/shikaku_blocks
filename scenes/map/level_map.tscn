@@ -1,0 +1,112 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/map/level_map.gd" id="1_map"]
+[ext_resource type="PackedScene" path="res://scenes/ui/background.tscn" id="2_bg"]
+[ext_resource type="Script" path="res://scenes/map/map_path.gd" id="3_path"]
+[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="4_home"]
+[ext_resource type="Texture2D" path="res://assets/icons/star.png" id="5_star"]
+[ext_resource type="Script" path="res://scripts/candy_button.gd" id="6_candy"]
+[ext_resource type="FontFile" path="res://assets/fonts/nunito_black.ttf" id="7_nunito"]
+
+[sub_resource type="Gradient" id="Gradient_ceiling"]
+colors = PackedColorArray(0.239, 0.122, 0.62, 0.78, 0.239, 0.122, 0.62, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_ceiling"]
+gradient = SubResource("Gradient_ceiling")
+width = 4
+height = 64
+fill_to = Vector2(0, 1)
+
+[node name="LevelMap" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_map")
+
+[node name="Background" parent="." instance=ExtResource("2_bg")]
+layout_mode = 1
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+scroll_deadzone = 10
+
+[node name="Path" type="Control" parent="Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 1
+script = ExtResource("3_path")
+
+[node name="Ceiling" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 200.0
+grow_horizontal = 2
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_ceiling")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="ScoreRow" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 36.0
+offset_bottom = 132.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="StarIcon" type="TextureRect" parent="ScoreRow"]
+unique_name_in_owner = true
+texture_filter = 4
+layout_mode = 0
+offset_right = 49.0
+offset_bottom = 49.0
+mouse_filter = 2
+texture = ExtResource("5_star")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="ScoreLabel" type="Label" parent="ScoreRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 24.0
+offset_bottom = 60.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.894, 0.361, 1)
+theme_override_fonts/font = ExtResource("7_nunito")
+theme_override_font_sizes/font_size = 44
+text = "0"
+vertical_alignment = 1
+
+[node name="HomeButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 36.0
+offset_right = 120.0
+offset_bottom = 132.0
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+tooltip_text = "В меню"
+icon = ExtResource("4_home")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("6_candy")

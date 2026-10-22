@@ -1,0 +1,24 @@
+# Отпечаток картинок docs/promo: пишет tools/promo_art.py, сверяет tools/promo_check.py. Не править руками.
+# источники
+03b1a3a277e45901f0b90fe86543dec174b31bda  tools/promo_art.py
+1a416411c126957333c0d22bc7a79a6bdd62f1fa  scenes/game/block.gd
+fd9471b3c1b68165c19112809a319cb84ced19b4  scenes/game/board.gd
+adbae38792ec886d161583652148d200fcf8ca3d  scenes/game/hud_header.gd
+21bb57ca007ff95660e9ee7ddba8a914151cf546  scenes/ui/background.gd
+f77f2d2bf9fa12d260ebf88336366d935fbb8987  scenes/ui/tutorial_hand.tscn
+db208e3cc493fc299c7c637a90a86046ff72f5f2  scripts/palette.gd
+dbacef1323df4d6e6bcc98a84b050b67c1b05daf  shaders/background.gdshader
+f4c86f78b1de167858f99ce59fcfcb33007e6977  shaders/block.gdshader
+45a7b43c063ec8c0955a56eac9868c6f22c8a33e  shaders/board.gdshader
+727a544714315346ec5749755a74a308f3d1c6ca  shaders/nest.gdshader
+9395d1ac1e0a6511132007846cbcdf4fc3aa82dc  shaders/win_rays.gdshader
+a845525068caab304d5d9d6a87c75e67715df36b  shaders/sdf.gdshaderinc
+801be1398a9220c79d66e575cd82c0d296190afb  assets/icons/sparkle.png
+8775a3281a697ae3b8234afb71db7d298504cd2d  assets/icons/hand.png
+9d7014e374ee8067d82f4c88f2c2b3880ca876fa  assets/fonts/nunito_black.ttf
+# картинки
+421c6b95fba1e3710c2732e95e9b5d8e5cfcb7fd  icon_512.png
+dae5437b071515fe5ff49a98f6db701e39ef201b  cover_800x470_ru.png
+52e4bd58155e5ccbf6f81eefabab5161a7cb57ec  cover_800x470_en.png
+0de3e026a574df94e3867cdda0fe39833f3ffd2a  cover_800x470_tr.png
+3c00a3f1ce8efa855b0506cbf59a3a18f8148eab  cover_800x470_notext.png

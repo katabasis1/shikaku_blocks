@@ -1,0 +1,144 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/leaders/leaders.gd" id="1_leaders"]
+[ext_resource type="PackedScene" path="res://scenes/ui/background.tscn" id="2_bg"]
+[ext_resource type="Script" path="res://scenes/leaders/leader_rows.gd" id="3_rows"]
+[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="4_home"]
+[ext_resource type="Script" path="res://scripts/candy_button.gd" id="5_candy"]
+[ext_resource type="Script" path="res://scripts/pill_button.gd" id="6_pill"]
+[ext_resource type="Script" path="res://scripts/candy_card.gd" id="7_card"]
+[ext_resource type="FontFile" path="res://assets/fonts/nunito_extrabold.ttf" id="8_bold"]
+
+[node name="Leaders" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_leaders")
+
+[node name="Background" parent="." instance=ExtResource("2_bg")]
+layout_mode = 1
+
+[node name="Content" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -640.0
+offset_right = 360.0
+offset_bottom = 640.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ScoreTab" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 140.0
+offset_top = 140.0
+offset_right = 352.0
+offset_bottom = 236.0
+pivot_offset = Vector2(106, 48)
+focus_mode = 0
+theme_override_font_sizes/font_size = 40
+text = "ОЧКИ"
+script = ExtResource("6_pill")
+
+[node name="StreakTab" type="Button" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 368.0
+offset_top = 140.0
+offset_right = 580.0
+offset_bottom = 236.0
+pivot_offset = Vector2(106, 48)
+focus_mode = 0
+theme_override_font_sizes/font_size = 40
+text = "СЕРИЯ"
+script = ExtResource("6_pill")
+tone = 2
+
+[node name="Card" type="PanelContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 60.0
+offset_top = 256.0
+offset_right = 660.0
+offset_bottom = 1040.0
+mouse_filter = 2
+theme_type_variation = &"CandyCard"
+script = ExtResource("7_card")
+
+[node name="Box" type="VBoxContainer" parent="Content/Card"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Title" type="Label" parent="Content/Card/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+theme_type_variation = &"CardTitle"
+text = "ЛИДЕРЫ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Rows" type="Control" parent="Content/Card/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 640)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+script = ExtResource("3_rows")
+
+[node name="StatusLabel" type="Label" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 40.0
+offset_top = 1056.0
+offset_right = 680.0
+offset_bottom = 1120.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.18, 0.086, 0.471, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("8_bold")
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="LoginButton" type="Button" parent="Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 190.0
+offset_top = 1130.0
+offset_right = 530.0
+offset_bottom = 1226.0
+pivot_offset = Vector2(170, 48)
+focus_mode = 0
+theme_override_font_sizes/font_size = 44
+text = "ВОЙТИ"
+script = ExtResource("6_pill")
+
+[node name="HomeButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 36.0
+offset_right = 120.0
+offset_bottom = 132.0
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+tooltip_text = "В меню"
+icon = ExtResource("4_home")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("5_candy")

@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/game/cell.gd" id="1_cell"]
+
+[ext_resource type="Shader" path="res://shaders/nest.gdshader" id="2_nest"]
+
+[ext_resource type="FontFile" path="res://assets/fonts/nunito_black.ttf" id="3_font"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nest"]
+resource_local_to_scene = true
+shader = ExtResource("2_nest")
+shader_parameter/cell = 100.0
+shader_parameter/margin = 48.0
+shader_parameter/radius = 0.24
+shader_parameter/gap = 0.045
+shader_parameter/side = 0.7
+shader_parameter/px = 1.0
+shader_parameter/ring = 0.0
+shader_parameter/halo_blur = 11.0
+shader_parameter/ring_in = 2.5
+shader_parameter/ring_out = 7.0
+shader_parameter/edge = 4.0
+shader_parameter/shadow_offset = Vector2(0, 3)
+shader_parameter/shadow_blur = 3.0
+
+[node name="Cell" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 100.0
+offset_bottom = 100.0
+pivot_offset = Vector2(50, 50)
+mouse_filter = 2
+script = ExtResource("1_cell")
+
+[node name="Badge" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(50, 50)
+mouse_filter = 2
+
+[node name="Nest" type="ColorRect" parent="Badge"]
+material = SubResource("ShaderMaterial_nest")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -48.0
+offset_top = -48.0
+offset_right = 48.0
+offset_bottom = 48.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.824, 0.247, 1)
+
+[node name="Number" type="Label" parent="Badge"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.824, 0.247, 1)
+theme_override_colors/font_outline_color = Color(0.58, 0.478, 0.143, 1)
+theme_override_colors/font_shadow_color = Color(0.5, 0.412, 0.124, 0.35)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 7
+theme_override_constants/shadow_outline_size = 7
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 40
+text = "4"
+horizontal_alignment = 1
+vertical_alignment = 1

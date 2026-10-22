@@ -1,0 +1,22 @@
+# Godot
+.godot/
+export_credentials.cfg
+
+# Сборка и промежуточные файлы
+build/
+music_out/
+tools/.levels_cache.jsonl
+__pycache__/
+*.pyc
+
+# Промо: скриншоты и видео пересобираются (tests/promo_shots.tscn, tools/promo_video.py), видео — сотни МБ;
+# в архив save.py они тоже не идут (ZIP_SKIP)
+docs/promo/shots/
+docs/promo/video/
+*.mp4
+
+# Архивы и системные файлы
+*.zip
+.DS_Store
+Thumbs.db
+desktop.ini

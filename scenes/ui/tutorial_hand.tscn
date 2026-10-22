@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/tutorial_hand.gd" id="1_hand"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/hand.png" id="2_hand"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_ring"]
+bg_color = Color(1, 1, 1, 0.18)
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(1, 1, 1, 0.95)
+corner_radius_top_left = 40
+corner_radius_top_right = 40
+corner_radius_bottom_right = 40
+corner_radius_bottom_left = 40
+
+[node name="TutorialHand" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+script = ExtResource("1_hand")
+
+[node name="Ring" type="Panel" parent="."]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_left = -40.0
+offset_top = -40.0
+offset_right = 40.0
+offset_bottom = 40.0
+pivot_offset = Vector2(40, 40)
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_ring")
+
+[node name="Hand" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -36.0
+offset_top = -2.0
+offset_right = 84.0
+offset_bottom = 118.0
+pivot_offset = Vector2(36, 2)
+texture_filter = 4
+mouse_filter = 2
+texture = ExtResource("2_hand")
+expand_mode = 1
+stretch_mode = 5

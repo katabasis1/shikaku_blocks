@@ -1,0 +1,91 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://autoload/audio.gd" id="1_audio"]
+[ext_resource type="AudioStream" path="res://assets/sfx/pick.wav" id="2_pick"]
+[ext_resource type="AudioStream" path="res://assets/sfx/place.wav" id="3_place"]
+[ext_resource type="AudioStream" path="res://assets/sfx/note.wav" id="4_note"]
+[ext_resource type="AudioStream" path="res://assets/sfx/rotate.wav" id="5_rotate"]
+[ext_resource type="AudioStream" path="res://assets/sfx/miss.wav" id="6_miss"]
+[ext_resource type="AudioStream" path="res://assets/sfx/error.wav" id="7_error"]
+[ext_resource type="AudioStream" path="res://assets/sfx/line.wav" id="8_line"]
+[ext_resource type="AudioStream" path="res://assets/sfx/win.wav" id="9_win"]
+[ext_resource type="AudioStream" path="res://assets/sfx/jingle.wav" id="10_jingle"]
+[ext_resource type="AudioStream" path="res://assets/sfx/star.wav" id="11_star"]
+[ext_resource type="AudioStream" path="res://assets/sfx/click.wav" id="12_click"]
+[ext_resource type="AudioStream" path="res://assets/sfx/undo.wav" id="13_undo"]
+[ext_resource type="AudioStream" path="res://assets/sfx/hint.wav" id="14_hint"]
+[ext_resource type="AudioStream" path="res://assets/music/bgm_main.ogg" id="15_music"]
+
+[node name="Audio" type="Node"]
+process_mode = 3
+script = ExtResource("1_audio")
+
+[node name="Pick" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_pick")
+volume_db = -10.5
+bus = &"SFX"
+
+[node name="Place" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_place")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="Note" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_note")
+volume_db = -13.5
+bus = &"SFX"
+
+[node name="Rotate" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("5_rotate")
+volume_db = -12.5
+bus = &"SFX"
+
+[node name="Miss" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6_miss")
+volume_db = -11.5
+bus = &"SFX"
+
+[node name="Error" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("7_error")
+volume_db = -14.0
+bus = &"SFX"
+
+[node name="Line" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("8_line")
+volume_db = -6.5
+bus = &"SFX"
+
+[node name="Win" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("9_win")
+volume_db = -2.5
+bus = &"SFX"
+
+[node name="Jingle" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("10_jingle")
+volume_db = -6.0
+bus = &"SFX"
+
+[node name="Star" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("11_star")
+volume_db = -9.5
+bus = &"SFX"
+
+[node name="Click" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("12_click")
+volume_db = -8.0
+bus = &"SFX"
+
+[node name="Undo" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("13_undo")
+volume_db = -11.0
+bus = &"SFX"
+
+[node name="Hint" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("14_hint")
+volume_db = -7.0
+bus = &"SFX"
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("15_music")
+volume_db = -12.0
+bus = &"Music"

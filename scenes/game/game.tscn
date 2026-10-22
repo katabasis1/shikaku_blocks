@@ -1,0 +1,425 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/game/game.gd" id="1_game"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/background.tscn" id="2_bg"]
+
+[ext_resource type="PackedScene" path="res://scenes/game/board.tscn" id="3_board"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/win_panel.tscn" id="4_win"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/pause.png" id="5_pause"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/restart.png" id="6_restart"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/undo.png" id="7_undo"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/hint.png" id="8_hint"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/star.png" id="9_star"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/ad.png" id="10_ad"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_panel.tscn" id="11_settings_panel"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/tutorial_hand.tscn" id="12_tutorial_hand"]
+
+[ext_resource type="Script" path="res://scenes/game/juice.gd" id="30_juice"]
+
+[ext_resource type="Script" path="res://scenes/game/tray.gd" id="13_tray"]
+
+[ext_resource type="Script" path="res://scenes/ui/toast.gd" id="14_toast"]
+
+[ext_resource type="Script" path="res://scenes/game/drag_controller.gd" id="15_drag"]
+
+[ext_resource type="Script" path="res://scenes/game/hint_controller.gd" id="16_hints"]
+
+[ext_resource type="Script" path="res://scenes/game/tutorial_coach.gd" id="17_coach"]
+
+[ext_resource type="Script" path="res://scripts/candy_button.gd" id="18_candy"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/badge.png" id="19_badge"]
+
+[ext_resource type="FontFile" path="res://assets/fonts/nunito_black.ttf" id="20_nunito"]
+
+[ext_resource type="Script" path="res://scenes/game/hud_header.gd" id="21_header"]
+
+[ext_resource type="Script" path="res://scripts/pill_label.gd" id="22_pill"]
+
+[ext_resource type="Script" path="res://scenes/game/win_backdrop.gd" id="23_backdrop"]
+
+[node name="Game" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_game")
+
+[node name="Background" parent="." instance=ExtResource("2_bg")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="WinBackdrop" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("23_backdrop")
+
+[node name="Content" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="Content"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 28.0
+offset_right = -24.0
+offset_bottom = 136.0
+grow_horizontal = 2
+theme_override_constants/separation = 12
+
+[node name="PauseButton" type="Button" parent="Content/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 4
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+tooltip_text = "Пауза"
+icon = ExtResource("5_pause")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("18_candy")
+
+[node name="Header" type="Control" parent="Content/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("21_header")
+
+[node name="LevelLabel" type="Label" parent="Content/TopBar/Header"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 456.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_override_fonts/font = ExtResource("20_nunito")
+theme_override_font_sizes/font_size = 50
+text = "УРОВЕНЬ 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StarIcon" type="TextureRect" parent="Content/TopBar/Header"]
+texture_filter = 4
+layout_mode = 0
+offset_right = 43.0
+offset_bottom = 43.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="ScoreLabel" type="Label" parent="Content/TopBar/Header"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 24.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.894, 0.361, 1)
+theme_override_fonts/font = ExtResource("20_nunito")
+theme_override_font_sizes/font_size = 38
+text = "0"
+vertical_alignment = 1
+
+[node name="RestartButton" type="Button" parent="Content/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 4
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("6_restart")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("18_candy")
+
+[node name="BoardArea" type="Control" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+offset_left = 22.0
+offset_top = 160.0
+offset_right = -22.0
+offset_bottom = -404.0
+mouse_filter = 2
+
+[node name="Board" parent="Content/BoardArea" instance=ExtResource("3_board")]
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="CoachLabel" type="Label" parent="Content/BoardArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 88.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.95)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+text = "Число — это размер блока. Перетащи блок на его число"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="ActionsBar" type="HBoxContainer" parent="Content"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+offset_left = 28.0
+offset_top = -390.0
+offset_right = -28.0
+offset_bottom = -290.0
+theme_override_constants/separation = 14
+
+[node name="UndoButton" type="Button" parent="Content/ActionsBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 4
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("7_undo")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("18_candy")
+
+[node name="Spacer" type="Control" parent="Content/ActionsBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="HintButton" type="Button" parent="Content/ActionsBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 4
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("8_hint")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("18_candy")
+
+[node name="AdBadge" type="TextureRect" parent="Content/ActionsBar/HintButton"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 57.0
+offset_top = -12.0
+offset_right = 108.0
+offset_bottom = 39.0
+mouse_filter = 2
+texture = ExtResource("10_ad")
+expand_mode = 1
+metadata/badge_d = 48.0
+metadata/badge_shape = Vector2(0.9375, 0.8984)
+metadata/badge_round = 0.6
+
+[node name="HintCounter" type="TextureRect" parent="Content/ActionsBar/HintButton"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 55.0
+offset_top = -14.0
+offset_right = 110.0
+offset_bottom = 41.0
+mouse_filter = 2
+texture = ExtResource("19_badge")
+expand_mode = 1
+metadata/badge_d = 52.0
+
+[node name="HintCount" type="Label" parent="Content/ActionsBar/HintButton/HintCounter"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.5
+offset_bottom = -1.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.639, 0.086, 0.227, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0)
+theme_override_constants/outline_size = 5
+theme_override_fonts/font = ExtResource("20_nunito")
+theme_override_font_sizes/font_size = 25
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RemainingLabel" type="Label" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 138.0
+offset_top = -390.0
+offset_right = -138.0
+offset_bottom = -290.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.118, 0.043, 0.361, 0.55)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/outline_size = 0
+theme_override_constants/shadow_outline_size = 0
+theme_override_font_sizes/font_size = 27
+text = "Осталось блоков: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("22_pill")
+
+[node name="Tray" type="BoxContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+offset_left = 24.0
+offset_top = -268.0
+offset_right = -24.0
+offset_bottom = -36.0
+theme_override_constants/separation = 12
+alignment = 1
+script = ExtResource("13_tray")
+
+[node name="Slot0" type="Panel" parent="Content/Tray"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(216, 232)
+layout_mode = 2
+theme_type_variation = &"Slot"
+
+[node name="Slot1" type="Panel" parent="Content/Tray"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(216, 232)
+layout_mode = 2
+theme_type_variation = &"Slot"
+
+[node name="Slot2" type="Panel" parent="Content/Tray"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(216, 232)
+layout_mode = 2
+theme_type_variation = &"Slot"
+
+[node name="Toast" type="PanelContainer" parent="Content"]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -538.0
+offset_right = 320.0
+offset_bottom = -414.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"Toast"
+script = ExtResource("14_toast")
+
+[node name="ToastLabel" type="Label" parent="Content/Toast"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"ToastText"
+text = "Нет ходов!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FxLayer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DragLayer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TutorialHand" parent="." instance=ExtResource("12_tutorial_hand")]
+unique_name_in_owner = true
+
+[node name="WinPanel" parent="." instance=ExtResource("4_win")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="PausePanel" parent="." instance=ExtResource("11_settings_panel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="DragController" type="Node" parent="."]
+script = ExtResource("15_drag")
+
+[node name="HintController" type="Node" parent="."]
+script = ExtResource("16_hints")
+
+[node name="TutorialCoach" type="Node" parent="."]
+script = ExtResource("17_coach")
+
+[node name="Juice" type="Node" parent="."]
+script = ExtResource("30_juice")

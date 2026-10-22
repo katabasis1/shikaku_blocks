@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://boqrefdrpjxlk"]
+
+[ext_resource type="Shader" uid="uid://bcgvqy2rsy7nc" path="res://shaders/background.gdshader" id="1_bg"]
+[ext_resource type="Script" path="res://scenes/ui/background.gd" id="2_scr"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
+resource_local_to_scene = true
+shader = ExtResource("1_bg")
+
+[node name="Background" type="ColorRect" unique_id=570963537]
+material = SubResource("ShaderMaterial_bg")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_scr")

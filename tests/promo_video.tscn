@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/promo_video.gd" id="1_video"]
+
+[node name="PromoVideo" type="Node"]
+script = ExtResource("1_video")

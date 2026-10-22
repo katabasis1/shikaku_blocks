@@ -1,0 +1,373 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/settings_panel.gd" id="1_settings"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/music_on.png" id="2_music"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/sound_on.png" id="3_sfx"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/vibration_on.png" id="4_vibration"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="5_home"]
+
+[ext_resource type="Script" path="res://scripts/candy_button.gd" id="6_candy"]
+
+[ext_resource type="Script" path="res://scripts/candy_card.gd" id="7_card"]
+
+[ext_resource type="Script" path="res://scripts/pill_button.gd" id="8_pill"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/star.png" id="9_star"]
+
+[sub_resource type="Animation" id="Animation_show"]
+resource_name = "show"
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Dim:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0, 0.2),
+"transitions": PackedFloat32Array(1.0, 1.0),
+"update": 0,
+"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Card:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0.0, 0.2, 0.3),
+"transitions": PackedFloat32Array(1.0, 1.0, 1.0),
+"update": 0,
+"values": [Vector2(0.9, 0.9), Vector2(1.03, 1.03), Vector2(1.0, 1.0)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Card:modulate")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0.0, 0.12),
+"transitions": PackedFloat32Array(1.0, 1.0),
+"update": 0,
+"values": [Color(1, 1, 1, 0), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_settings"]
+_data = {
+&"show": SubResource("Animation_show")
+}
+
+[node name="SettingsPanel" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settings")
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.06, 0.04, 0.2, 0.72)
+
+[node name="Card" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -200.0
+offset_right = 280.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(280, 200)
+theme_type_variation = &"CandyCard"
+script = ExtResource("7_card")
+
+[node name="Box" type="VBoxContainer" parent="Card"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="Title" type="Label" parent="Card/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+theme_type_variation = &"CardTitle"
+text = "НАСТРОЙКИ"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MainBox" type="VBoxContainer" parent="Card/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="Toggles" type="HBoxContainer" parent="Card/Box/MainBox"]
+layout_mode = 2
+theme_override_constants/separation = 32
+alignment = 1
+
+[node name="MusicToggle" type="VBoxContainer" parent="Card/Box/MainBox/Toggles"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MusicButton" type="Button" parent="Card/Box/MainBox/Toggles/MusicToggle"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+pivot_offset = Vector2(64, 64)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("2_music")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("6_candy")
+
+[node name="MusicLabel" type="Label" parent="Card/Box/MainBox/Toggles/MusicToggle"]
+layout_mode = 2
+theme_type_variation = &"CardText"
+theme_override_font_sizes/font_size = 27
+text = "Музыка"
+horizontal_alignment = 1
+
+[node name="SfxToggle" type="VBoxContainer" parent="Card/Box/MainBox/Toggles"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SfxButton" type="Button" parent="Card/Box/MainBox/Toggles/SfxToggle"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+pivot_offset = Vector2(64, 64)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("3_sfx")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("6_candy")
+
+[node name="SfxLabel" type="Label" parent="Card/Box/MainBox/Toggles/SfxToggle"]
+layout_mode = 2
+theme_type_variation = &"CardText"
+theme_override_font_sizes/font_size = 27
+text = "Звуки"
+horizontal_alignment = 1
+
+[node name="VibrationToggle" type="VBoxContainer" parent="Card/Box/MainBox/Toggles"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="VibrationButton" type="Button" parent="Card/Box/MainBox/Toggles/VibrationToggle"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+pivot_offset = Vector2(64, 64)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+icon = ExtResource("4_vibration")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("6_candy")
+
+[node name="VibrationLabel" type="Label" parent="Card/Box/MainBox/Toggles/VibrationToggle"]
+layout_mode = 2
+theme_type_variation = &"CardText"
+theme_override_font_sizes/font_size = 27
+text = "Вибрация"
+horizontal_alignment = 1
+
+[node name="RateBox" type="Control" parent="Card/Box/MainBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(400, 144)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+
+[node name="RateButton" type="Button" parent="Card/Box/MainBox/RateBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 96)
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -96.0
+grow_horizontal = 2
+grow_vertical = 0
+focus_mode = 0
+theme_override_font_sizes/font_size = 40
+text = "ОЦЕНИТЬ ИГРУ"
+script = ExtResource("8_pill")
+tone = 3
+
+[node name="RateStars" type="Control" parent="Card/Box/MainBox/RateBox"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Star1" type="TextureRect" parent="Card/Box/MainBox/RateBox/RateStars"]
+texture_filter = 4
+layout_mode = 0
+offset_left = -136.0
+offset_top = 22.0
+offset_right = -92.0
+offset_bottom = 66.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star2" type="TextureRect" parent="Card/Box/MainBox/RateBox/RateStars"]
+texture_filter = 4
+layout_mode = 0
+offset_left = -87.0
+offset_top = 7.0
+offset_right = -33.0
+offset_bottom = 61.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star3" type="TextureRect" parent="Card/Box/MainBox/RateBox/RateStars"]
+texture_filter = 4
+layout_mode = 0
+offset_left = -32.0
+offset_top = -2.0
+offset_right = 32.0
+offset_bottom = 62.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star4" type="TextureRect" parent="Card/Box/MainBox/RateBox/RateStars"]
+texture_filter = 4
+layout_mode = 0
+offset_left = 33.0
+offset_top = 7.0
+offset_right = 87.0
+offset_bottom = 61.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Star5" type="TextureRect" parent="Card/Box/MainBox/RateBox/RateStars"]
+texture_filter = 4
+layout_mode = 0
+offset_left = 92.0
+offset_top = 22.0
+offset_right = 136.0
+offset_bottom = 66.0
+mouse_filter = 2
+texture = ExtResource("9_star")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MotionButton" type="Button" parent="Card/Box/MainBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 80)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_override_font_sizes/font_size = 30
+text = "Меньше движения: выкл"
+script = ExtResource("8_pill")
+tone = 2
+
+[node name="CloseButton" type="Button" parent="Card/Box/MainBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 110)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+text = "ГОТОВО"
+script = ExtResource("8_pill")
+
+[node name="ResetButton" type="Button" parent="Card/Box/MainBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 80)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_override_font_sizes/font_size = 30
+text = "Сбросить прогресс"
+script = ExtResource("8_pill")
+tone = 2
+
+[node name="HomeButton" type="Button" parent="Card/Box/MainBox"]
+unique_name_in_owner = true
+texture_filter = 4
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_type_variation = &"CardLink"
+text = "В меню"
+icon = ExtResource("5_home")
+
+[node name="ConfirmBox" type="VBoxContainer" parent="Card/Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="ConfirmText" type="Label" parent="Card/Box/ConfirmBox"]
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+theme_type_variation = &"CardText"
+text = "Уровни, звёзды и очки начнутся с нуля. Вернуть их будет нельзя."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ConfirmResetButton" type="Button" parent="Card/Box/ConfirmBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 110)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+text = "СБРОСИТЬ"
+script = ExtResource("8_pill")
+tone = 1
+
+[node name="CancelResetButton" type="Button" parent="Card/Box/ConfirmBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 80)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_override_font_sizes/font_size = 30
+text = "ОТМЕНА"
+script = ExtResource("8_pill")
+tone = 2
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_settings")
+}

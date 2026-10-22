@@ -1,0 +1,56 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Расставь блоки по числам"
+config/description="Гиперказуальная головоломка: шикаку + блок-пазл."
+run/main_scene="res://scenes/menu/menu.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(0.482, 0.325, 0.878, 1)
+boot_splash/show_image=false
+config/icon="res://icon.png"
+
+[autoload]
+
+GameState="*res://autoload/game_state.gd"
+Analytics="*res://autoload/analytics.gd"
+Audio="*res://autoload/audio.tscn"
+YSDK="*res://autoload/ysdk.gd"
+Transition="*res://autoload/transition.gd"
+Quality="*res://autoload/quality.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=450
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/default_font_multichannel_signed_distance_field=true
+theme/custom="res://theme/main_theme.tres"
+common/drop_mouse_on_gui_input_disabled=true
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/en.po", "res://locale/tr.po")
+locale/fallback="ru"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.482, 0.325, 0.878, 1)

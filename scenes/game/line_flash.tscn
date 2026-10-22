@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/game/line_flash.gd" id="1_flash"]
+
+[node name="LineFlash" type="ColorRect"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 100.0
+offset_bottom = 100.0
+mouse_filter = 2
+script = ExtResource("1_flash")

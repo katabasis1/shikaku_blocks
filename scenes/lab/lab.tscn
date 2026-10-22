@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/lab/lab.gd" id="1_lab"]
+[ext_resource type="PackedScene" path="res://scenes/ui/background.tscn" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="3_home"]
+[ext_resource type="Script" path="res://scripts/candy_button.gd" id="4_candy"]
+[ext_resource type="FontFile" path="res://assets/fonts/nunito_extrabold.ttf" id="5_bold"]
+
+[node name="Lab" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_lab")
+
+[node name="Background" parent="." instance=ExtResource("2_bg")]
+layout_mode = 1
+
+[node name="Content" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -640.0
+offset_right = 360.0
+offset_bottom = 640.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TitleLabel" type="Label" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 140.0
+offset_top = 36.0
+offset_right = 580.0
+offset_bottom = 132.0
+theme_type_variation = &"CardTitle"
+theme_override_font_sizes/font_size = 48
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Cards" type="VBoxContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 156.0
+offset_right = 696.0
+offset_bottom = 1120.0
+mouse_filter = 2
+theme_override_constants/separation = 28
+
+[node name="NoteLabel" type="Label" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 40.0
+offset_top = 1136.0
+offset_right = 680.0
+offset_bottom = 1220.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.18, 0.086, 0.471, 1)
+theme_override_constants/outline_size = 8
+theme_override_fonts/font = ExtResource("5_bold")
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="HomeButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 36.0
+offset_right = 120.0
+offset_bottom = 132.0
+pivot_offset = Vector2(48, 48)
+focus_mode = 0
+theme_type_variation = &"CandyButton"
+tooltip_text = "В меню"
+icon = ExtResource("3_home")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("4_candy")

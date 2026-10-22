@@ -1,0 +1,289 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Shikaku Blocks\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: tr\n"
+
+msgid "УРОВЕНЬ %d"
+msgstr "SEVİYE %d"
+
+msgid "Осталось блоков: %d"
+msgstr "Kalan blok: %d"
+
+msgid "Отлично!"
+msgstr "Harika!"
+
+msgid "Супер!"
+msgstr "Süper!"
+
+msgid "Невероятно!"
+msgstr "İnanılmaz!"
+
+msgid "Тупик: так поле не заполнить. Отмени ход"
+msgstr "Çıkmaz: tahta artık dolmaz. Hamleyi geri al"
+
+msgid "Нет ходов! Отмени ошибку"
+msgstr "Hamle yok! Hatayı geri al"
+
+msgid "Всё ещё тупик — отмени ещё ход"
+msgstr "Hâlâ çıkmaz — bir hamle daha geri al"
+
+msgid "Подсказка откроется после просмотра рекламы"
+msgstr "İpucu için reklamı izle"
+
+msgid "Сначала отмени ошибочный ход"
+msgstr "Önce hatalı hamleyi geri al"
+
+msgid "Подсказка: убраны неверные блоки (%d)"
+msgstr "İpucu: hatalı bloklar kaldırıldı (%d)"
+
+msgid "Число — это размер блока. Перетащи блок на его число"
+msgstr "Sayı, bloğun boyutudur. Her bloğu kendi sayısına sürükle"
+
+msgid "Нажми на блок, чтобы повернуть его"
+msgstr "Döndürmek için bloğa dokun"
+
+msgid "В каждом блоке — ровно одно число"
+msgstr "Her blok tam olarak bir sayıyı kaplar"
+
+msgid "Блок накрывает одно число, и его размер равен этому числу"
+msgstr "Blok tek bir sayıyı kaplar ve boyutu o sayıya eşittir"
+
+msgid "Блоки не должны накладываться"
+msgstr "Bloklar üst üste binemez"
+
+msgid "В блоке должно быть ровно одно число"
+msgstr "Blok tam olarak bir sayıyı kaplamalı"
+
+msgid "Здесь нужен блок из %d клеток"
+msgstr "Buraya %d hücrelik bir blok gerekir"
+
+msgid "Так остальные блоки не поместятся"
+msgstr "O zaman diğer bloklar sığmaz"
+
+msgid "Эта клетка занята с самого начала"
+msgstr "Bu hücre baştan beri dolu"
+
+msgid "Цветную клетку накрывает только блок того же цвета"
+msgstr "Renkli hücreye yalnızca aynı renkte blok konur"
+
+msgid "Белые плитки — препятствия: на них блок не встанет"
+msgstr "Beyaz karolar engeldir: üzerlerine blok konmaz"
+
+msgid "Серый блок закреплён: строй вокруг него"
+msgstr "Gri blok sabit: etrafına yerleştir"
+
+msgid "«?» — размер неизвестен: подойдёт любой блок, но решение одно"
+msgstr "“?” boyutu gizler: her blok sığabilir ama tek bir çözüm var"
+
+msgid "УРОВЕНЬ %d ПРОЙДЕН!"
+msgstr "SEVİYE %d TAMAMLANDI!"
+
+msgid "НОВЫЙ РЕКОРД!"
+msgstr "YENİ REKOR!"
+
+msgid "ИДЕАЛЬНО!"
+msgstr "MÜKEMMEL!"
+
+msgid "ОТЛИЧНО!"
+msgstr "HARİKA!"
+
+msgid "ХОРОШО!"
+msgstr "İYİ!"
+
+msgid "Всего очков: %s"
+msgstr "Toplam puan: %s"
+
+msgid "Всего очков: %s (+%s)"
+msgstr "Toplam puan: %s (+%s)"
+
+msgid "Рекорд уровня: %s"
+msgstr "Seviye rekoru: %s"
+
+msgid "Нет ходов!"
+msgstr "Hamle yok!"
+
+msgid "ИГРАТЬ"
+msgstr "OYNA"
+
+msgid "СЕРИЯ %d"
+msgstr "SERİ %d"
+
+msgid "СЕРИЯ %d · ГОТОВО"
+msgstr "SERİ %d · TAMAM"
+
+msgid "ЗАДАЧА ДНЯ"
+msgstr "GÜNÜN GÖREVİ"
+
+msgid "ЛИДЕРЫ"
+msgstr "LİDERLER"
+
+msgid "Лидеры"
+msgstr "Liderler"
+
+msgid "ОЧКИ"
+msgstr "PUAN"
+
+msgid "СЕРИЯ"
+msgstr "SERİ"
+
+msgid "ВОЙТИ"
+msgstr "GİRİŞ YAP"
+
+msgid "Загрузка…"
+msgstr "Yükleniyor…"
+
+msgid "Пока пусто — будьте первым!"
+msgstr "Henüz boş — ilk sen ol!"
+
+msgid "Игрок"
+msgstr "Oyuncu"
+
+msgid "Вы"
+msgstr "Sen"
+
+msgid "Таблица лидеров — в Яндекс Играх"
+msgstr "Liderlik tablosu Yandex Games'te"
+
+msgid "Не удалось загрузить. Проверьте интернет"
+msgstr "Yüklenemedi. İnternetini kontrol et"
+
+msgid "Войдите, чтобы попасть в таблицу"
+msgstr "Tabloya girmek için giriş yap"
+
+msgid "Пройдите задачу дня, чтобы попасть в таблицу"
+msgstr "Tabloya girmek için günlük bulmacayı çöz"
+
+msgid "Пройдите уровень, чтобы попасть в таблицу"
+msgstr "Tabloya girmek için bir seviye geç"
+
+msgid "ЕЖЕДНЕВНАЯ ЗАДАЧА ПРОЙДЕНА!"
+msgstr "GÜNLÜK BULMACA ÇÖZÜLDÜ!"
+
+msgid "Серия: %d"
+msgstr "Seri: %d"
+
+msgid "В МЕНЮ"
+msgstr "MENÜ"
+
+msgid "УРОВНИ"
+msgstr "SEVİYELER"
+
+msgid "ДАЛЕЕ"
+msgstr "DEVAM"
+
+msgid "Переиграть уровень"
+msgstr "Seviyeyi tekrar oyna"
+
+msgid "НАСТРОЙКИ"
+msgstr "AYARLAR"
+
+msgid "ПАУЗА"
+msgstr "DURAKLATILDI"
+
+msgid "СБРОСИТЬ ПРОГРЕСС?"
+msgstr "İLERLEMEYİ SIFIRLA?"
+
+msgid "Настройки"
+msgstr "Ayarlar"
+
+msgid "Пауза"
+msgstr "Duraklat"
+
+msgid "ПРОДОЛЖИТЬ"
+msgstr "DEVAM ET"
+
+msgid "ГОТОВО"
+msgstr "TAMAM"
+
+msgid "Музыка"
+msgstr "Müzik"
+
+msgid "Звуки"
+msgstr "Sesler"
+
+msgid "Вибрация"
+msgstr "Titreşim"
+
+msgid "Сбросить прогресс"
+msgstr "İlerlemeyi sıfırla"
+
+msgid "ОЦЕНИТЬ ИГРУ"
+msgstr "OYUNU PUANLA"
+
+msgid "В меню"
+msgstr "Ana menü"
+
+msgid "Уровни, звёзды и очки начнутся с нуля. Вернуть их будет нельзя."
+msgstr "Seviyeler, yıldızlar ve puanlar sıfırdan başlar. Bu işlem geri alınamaz."
+
+msgid "ОТМЕНА"
+msgstr "İPTAL"
+
+msgid "СБРОСИТЬ"
+msgstr "SIFIRLA"
+
+msgid "Меньше движения: выкл"
+msgstr "Az hareket: kapalı"
+
+msgid "Меньше движения: вкл"
+msgstr "Az hareket: açık"
+
+msgid "ГЛАВА %d · %s"
+msgstr "BÖLÜM %d · %s"
+
+msgid "ГЛАВА %d"
+msgstr "BÖLÜM %d"
+
+msgid "СУМЕРКИ"
+msgstr "ALACAKARANLIK"
+
+msgid "ЗВЁЗДЫ"
+msgstr "YILDIZLAR"
+
+msgid "ПОЛНОЧЬ"
+msgstr "GECE YARISI"
+
+msgid "ЛУНА"
+msgstr "AY"
+
+msgid "КОМЕТА"
+msgstr "KOMET"
+
+msgid "СИЯНИЕ"
+msgstr "KUTUP IŞIĞI"
+
+msgid "ТУМАННОСТЬ"
+msgstr "BULUTSU"
+
+msgid "ГАЛАКТИКА"
+msgstr "GALAKSİ"
+
+msgid "КОСМОС"
+msgstr "KOZMOS"
+
+msgid "РАССВЕТ"
+msgstr "ŞAFAK"
+
+msgid "Новое: длинные блоки 5 и 10"
+msgstr "Yeni: uzun bloklar 5 ve 10"
+
+msgid "Новое: большой блок 12"
+msgstr "Yeni: büyük blok 12"
+
+msgid "Новое: препятствия"
+msgstr "Yeni: engeller"
+
+msgid "Новое: закреплённый блок"
+msgstr "Yeni: sabit blok"
+
+msgid "Новое: цветные клетки"
+msgstr "Yeni: renkli hücreler"
+
+msgid "Новое: число «?»"
+msgstr "Yeni: “?” sayısı"
+
+msgid "Все новинки вперемешку"
+msgstr "Tüm yenilikler karışık"
