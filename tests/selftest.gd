@@ -1101,7 +1101,8 @@ func _test_yandex_features() -> void:
 	var defaults := YSDK.flag_defaults()
 	_check(defaults == {"interstitial_from_level": str(YSDK.DEFAULT_INTERSTITIAL_FROM_LEVEL),
 			"interstitial_interval_ms": str(YSDK.DEFAULT_INTERSTITIAL_INTERVAL_MS),
-			"free_hints_per_level": str(YSDK.DEFAULT_FREE_HINTS_PER_LEVEL)},
+			"free_hints_per_level": str(YSDK.DEFAULT_FREE_HINTS_PER_LEVEL),
+			"hearts": "3", "hearts_from_level": "4", "revive_max": "3", "revive_free_on_fail": "1"},
 			"флаги по умолчанию: %s" % str(defaults))
 	var saved_flags := [YSDK.interstitial_from_level, YSDK.interstitial_interval_ms, YSDK._free_hints,
 			YSDK.flags_ready]
@@ -1123,6 +1124,25 @@ func _test_yandex_features() -> void:
 	_check(YSDK.interstitial_from_level == YSDK.DEFAULT_INTERSTITIAL_FROM_LEVEL
 			and YSDK.interstitial_interval_ms == YSDK.DEFAULT_INTERSTITIAL_INTERVAL_MS
 			and YSDK.free_hints_per_level() == YSDK.DEFAULT_FREE_HINTS_PER_LEVEL, "флаги без ответа — не по умолчанию")
+	# Сердца (20.1a): из консоли; мусор — по умолчанию, вне пределов — край; revive_free_on_fail — только 0 / 1.
+	YSDK._handle_event("flags", {"hearts": "5", "hearts_from_level": "10", "revive_max": "0",
+			"revive_free_on_fail": "0"})
+	_check(YSDK.hearts() == 5 and YSDK.hearts_from_level() == 10 and YSDK.revive_max() == 0
+			and not YSDK.revive_free_on_fail(), "флаги сердец из консоли: %d / %d / %d / %s" % [YSDK.hearts(),
+			YSDK.hearts_from_level(), YSDK.revive_max(), YSDK.revive_free_on_fail()])
+	YSDK._handle_event("flags", {"hearts": "9", "hearts_from_level": "abc", "revive_max": "99",
+			"revive_free_on_fail": "7"})
+	_check(YSDK.hearts() == YSDK.FLAG_HEARTS_MAX and YSDK.hearts_from_level() == YSDK.DEFAULT_HEARTS_FROM_LEVEL
+			and YSDK.revive_max() == YSDK.FLAG_REVIVE_MAX and YSDK.revive_free_on_fail(),
+			"мусорные флаги сердец: %d / %d / %d / %s" % [YSDK.hearts(), YSDK.hearts_from_level(), YSDK.revive_max(),
+			YSDK.revive_free_on_fail()])
+	YSDK._handle_event("flags", {"hearts": "0"})  # 0 — без предела (сердец не видно)
+	_check(YSDK.hearts() == 0 and Hearts.max_for(20, false, false, YSDK.hearts(), YSDK.hearts_from_level()) == 0,
+			"флаг hearts = 0: сердец %d" % YSDK.hearts())
+	YSDK._handle_event("flags", null)
+	_check(YSDK.hearts() == YSDK.DEFAULT_HEARTS and YSDK.hearts_from_level() == YSDK.DEFAULT_HEARTS_FROM_LEVEL
+			and YSDK.revive_max() == YSDK.DEFAULT_REVIVE_MAX and YSDK.revive_free_on_fail(),
+			"флаги сердец без ответа — не по умолчанию")
 	YSDK.interstitial_from_level = saved_flags[0]
 	YSDK.interstitial_interval_ms = saved_flags[1]
 	YSDK._free_hints = saved_flags[2]
@@ -4049,9 +4069,16 @@ func _breath_run(game: Game) -> void:
 	game.paused = true
 	states += "" if not game._can_breathe() else " пауза;"
 	game.paused = false
-	game.dead_end = true
-	states += "" if not game._can_breathe() else " тупик;"
-	game.dead_end = false
+	# 20.1a: тупика как состояния больше нет — ошибочный блок возвращается в гнездо, сердца могут кончиться.
+	game._mistake = {"block": null, "slot": -1, "rect": Rect2i()}
+	states += "" if not game._can_breathe() else " ошибочный блок;"
+	game._mistake = {}
+	var hearts_max := game.hearts.max_hearts
+	game.hearts.reset(3)
+	for _k in 3:
+		game.hearts.lose()
+	states += "" if not game._can_breathe() else " сердца кончились;"
+	game.hearts.reset(hearts_max)
 	game.finished = true
 	states += "" if not game._can_breathe() else " победа;"
 	game.finished = false
@@ -4098,10 +4125,7 @@ func _test_juice_dead_hint(game: Game) -> void:
 			"juice.tres, «Подсказка»: блок летит на место %.2f с (ждали больше land_time %.2f и не больше 0,4)" % [
 			cfg.hint_float_time, cfg.land_time])
 	var was_motion := GameState.reduce_motion
-	# Навык «Отмена» — заранее пройден (14.8e): иначе первый тупик без страховки затемняет поле обучением
-	# (TutorialCoach.on_dead_end — board.modulate), а здесь проверяется только вспышка тупика.
-	var had_undo := GameState.has_skill(Tutorial.UNDO)
-	GameState.learn(Tutorial.UNDO)
+	# 20.1a: урока отмены нет (прежде навык UNDO проходили заранее, чтобы обучение не тушило поле).
 	for rm in [false, true]:
 		GameState.set_reduce_motion(rm)
 		await _dead_end_run(game, rm)
@@ -4111,18 +4135,19 @@ func _test_juice_dead_hint(game: Game) -> void:
 	await _hint_undo_run(game)
 	await _hint_last_run(game)
 	GameState.set_reduce_motion(was_motion)
-	if not had_undo:
-		GameState.tutorial &= ~Tutorial.UNDO
 	game.juice.reset()
 
 
-const DEAD_AT := 0.45  # Game._after_move: предупреждение тупика — через 0,45 с после хода (блок уже лёг)
+const DEAD_AT := 0.45  # Game._on_mistake: предупреждение тупика — через 0,45 с после хода (блок уже лёг)
 const DEAD_LEVELS: Array[int] = [12, 15, 18, 21, 24, 27, 30, 35, 40]
 
 
+## Ошибка (20.1a) по шагам: свой тупиковый ход — сердце гаснет в кадр хода, через DEAD_AT поле темнеет (слои, не
+## board.modulate), блок трескается, сердца вздрагивают (Fx.hop → pulse); через Game.MISTAKE_RETURN блок сам
+## возвращается в гнездо без трещины, место на поле свободно. rm — «Меньше движения»: трещина сразу.
 func _dead_end_run(game: Game, rm: bool) -> void:
 	var cfg := Block.cfg()
-	var tag := "тупик%s" % (", «Меньше движения»" if rm else "")
+	var tag := "ошибка%s" % (", «Меньше движения»" if rm else "")
 	var board := game.board
 	var mv: Array = []
 	for lvl in DEAD_LEVELS:
@@ -4134,27 +4159,30 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 	if not _check(not mv.is_empty(), "%s: на уровнях %s нет тупикового хода" % [tag, str(DEAD_LEVELS)]):
 		return
 	await get_tree().create_timer(_intro_end() + 0.1).timeout
-	var undo := game.undo_button as CandyButton
+	var bar := game.hearts_bar
 	var slot: int = mv[0]
 	var r: Rect2i = mv[1]
 	var b: Block = game.tray.blocks[slot]
 	var mod0 := board.modulate
-	_place(game, slot, r)
-	var face_y := undo.face.position.y  # «Отмена» включилась ходом — лицо на месте
-	if not _check(game.dead_end, "%s: ход %s не тупиковый" % [tag, str(r)]):
+	var left0 := game.hearts.left
+	var moves0 := game.moves.size()
+	_drop(game, slot, r)
+	if not _check(game.has_mistake() and game.moves.size() == moves0, "%s: ход %s не стал ошибкой (ходов %d → %d)" % [
+			tag, str(r), moves0, game.moves.size()]):
 		return
+	_check(game.hearts.is_limited() and game.hearts.left == left0 - 1 and bar.left == game.hearts.left,
+			"%s: сердце не сгорело в кадр хода (было %d, стало %d, на полосе %d)" % [tag, left0, game.hearts.left,
+			bar.left])
 	var t0 := Time.get_ticks_msec()
 	var dim_start := -1.0
 	var max_dim := 0.0
 	var crack_full := -1.0
 	var crack_early := false
-	var max_hop := 0.0
-	var hop_peaks := 0
-	var prev_hop := 0.0
-	var rising := false
+	var max_pulse := 1.0
+	var back_at := -1.0
 	var tint_bad := ""
 	var board_mod_bad := false
-	var end := DEAD_AT + maxf(cfg.dead_dim_in + cfg.dead_dim_hold + cfg.dead_dim_out, cfg.dead_hop_time * 2.0) + 0.25
+	var end := DEAD_AT + maxf(cfg.dead_dim_in + cfg.dead_dim_hold + cfg.dead_dim_out, Game.MISTAKE_RETURN - DEAD_AT) + 0.25
 	while true:
 		await get_tree().process_frame
 		var t := (Time.get_ticks_msec() - t0) / 1000.0
@@ -4168,18 +4196,14 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 			if tint_bad == "" and not (layer as CanvasItem).modulate.is_equal_approx(want):
 				tint_bad = "%s %s при %.2f" % [(layer as Node).name, str((layer as CanvasItem).modulate), d]
 		board_mod_bad = board_mod_bad or board.modulate != mod0
-		var c := b.cracked()
-		crack_early = crack_early or (c > 0.0 and t < DEAD_AT - 0.03)
-		if c >= 0.999 and crack_full < 0.0:
-			crack_full = t
-		var h := undo.hop_height()
-		max_hop = maxf(max_hop, h)
-		if h > prev_hop + 0.01:
-			rising = true
-		elif h < prev_hop - 0.01 and rising:
-			hop_peaks += 1
-			rising = false
-		prev_hop = h
+		if back_at < 0.0:
+			var c := b.cracked()
+			crack_early = crack_early or (c > 0.0 and t < DEAD_AT - 0.03)
+			if c >= 0.999 and crack_full < 0.0:
+				crack_full = t
+			if not game.has_mistake():
+				back_at = t
+		max_pulse = maxf(max_pulse, bar.scale.x)
 		if t > end:
 			break
 	_check(dim_start >= DEAD_AT - 0.03 and dim_start <= DEAD_AT + 0.1,
@@ -4190,21 +4214,16 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 			"%s: слои поля не в такт затемнению: %s" % [tag, tint_bad])
 	_check(not board_mod_bad, "%s: вспышка тупика тронула board.modulate (его держит обучение)" % tag)
 	var crack_by := DEAD_AT + (0.0 if rm else cfg.dead_crack_time) + 0.1
-	_check(not crack_early and crack_full >= DEAD_AT - 0.03 and crack_full <= crack_by and b.cracked() >= 0.999,
-			"%s: трещина целиком через %.2f с (ждали %.2f…%.2f), раньше предупреждения %s, в конце %.2f" % [
-			tag, crack_full, DEAD_AT, crack_by, crack_early, b.cracked()])
-	if rm:
-		_check(is_zero_approx(max_hop), "«Меньше движения»: лицо «Отмены» подпрыгнуло на %.1f px" % max_hop)
-	else:
-		_check(max_hop >= cfg.dead_hop * 0.9 and max_hop <= cfg.dead_hop + 0.01 and hop_peaks == 2,
-				"тупик: «Отмена» подпрыгнула на %.1f px (ждали %.0f) %d раз(а) (ждали 2)" % [max_hop, cfg.dead_hop,
-				hop_peaks])
-	_check(is_zero_approx(undo.hop_height()) and is_equal_approx(undo.face.position.y, face_y),
-			"%s: лицо «Отмены» не встало на место: подъём %.2f, y %.1f (было %.1f)" % [tag, undo.hop_height(),
-			undo.face.position.y, face_y])
-	game._on_undo_pressed()
-	_check(not game.dead_end and is_zero_approx(b.cracked()) and b.get_parent() == game.tray.slots[slot],
-			"%s: отмена не сняла трещину (%.2f) или блок не в лотке" % [tag, b.cracked()])
+	_check(not crack_early and crack_full >= DEAD_AT - 0.03 and crack_full <= crack_by,
+			"%s: трещина целиком через %.2f с (ждали %.2f…%.2f), раньше предупреждения %s" % [tag, crack_full, DEAD_AT,
+			crack_by, crack_early])
+	_check(max_pulse >= 1.15 and is_equal_approx(bar.scale.x, 1.0),
+			"%s: сердца не вздрогнули (масштаб до %.2f, в конце %.2f)" % [tag, max_pulse, bar.scale.x])
+	_check(back_at >= Game.MISTAKE_RETURN - 0.05 and back_at <= Game.MISTAKE_RETURN + 0.15,
+			"%s: ошибочный блок вернулся через %.2f с (ждали %.2f)" % [tag, back_at, Game.MISTAKE_RETURN])
+	_check(is_zero_approx(b.cracked()) and game.tray.blocks[slot] == b and b.get_parent() == game.tray.slots[slot]
+			and board.check_rect(r) and game.moves.size() == moves0,
+			"%s: после возврата трещина %.2f, блок не в гнезде %d или место занято" % [tag, b.cracked(), slot])
 	await get_tree().create_timer(Block.cfg().return_time + 0.15).timeout
 
 
@@ -4377,10 +4396,10 @@ func _board_rest(board: Board, b: Block, r: Rect2i) -> bool:
 			and b.visual.modulate.a >= 0.999
 
 
-## Отмена посреди полёта подсказки: ход снят, искра тает без вспышки, блок — в своё гнездо, на поле он не ложится.
+## Снятие хода посреди полёта подсказки (Game.undo_last; кнопки «Отмена» с 20.1a нет): ход снят, искра тает без вспышки, блок — в своё гнездо, на поле он не ложится.
 func _hint_undo_run(game: Game) -> void:
 	var cfg := Block.cfg()
-	var tag := "подсказка, отмена посреди полёта"
+	var tag := "подсказка, ход снят посреди полёта"
 	var board := game.board
 	var juice := game.juice
 	game.start_level(12)
@@ -4395,7 +4414,7 @@ func _hint_undo_run(game: Game) -> void:
 	var slot: int = m.slot
 	await get_tree().create_timer(cfg.hint_float_time * 0.5).timeout
 	var live0 := juice.live_particles()
-	game._on_undo_pressed()
+	game.undo_last()  # 20.1a: кнопки «Отмена» нет; ход снимает служебный undo_last (новая попытка, лаборатория)
 	_check(game.moves.is_empty() and not board.holds(b, r) and b.z_index == 0 and b.get_parent() == game.tray.slots[slot],
 			"%s: ход не снят (ходов %d), z %d, блок не в гнезде" % [tag, game.moves.size(), b.z_index])
 	await get_tree().create_timer(maxf(cfg.return_time, cfg.hint_float_time) + 0.15).timeout
@@ -5102,7 +5121,7 @@ func _test_tutorial(game: Game) -> void:
 	coach.tick(0.016)
 	_check(not hand.visible, "рука появилась на уровне %d (только 1–%d)" % [guard + 1, guard])
 
-	# Первый тупик без страховки: поле тускнеет, рука показывает на «Отмена».
+	# Первая ошибка без страховки (20.1a): урока отмены нет — поле не тускнеет, руки нет, блок вернётся сам.
 	var dead_lvl := 0
 	var dead: Array = []
 	for lvl in range(guard + 1, guard + 20):
@@ -5111,22 +5130,15 @@ func _test_tutorial(game: Game) -> void:
 		if not dead.is_empty():
 			dead_lvl = lvl
 			break
-	if _check(dead_lvl > 0, "не нашлось уровня с тупиковым ходом для обучения отмене"):
-		_place(game, dead[0], dead[1])
-		_check(game.dead_end and coach.dimmed, "L%d: первый тупик — поле не притушено" % dead_lvl)
-		coach.tick(TutorialCoach.UNDO_DELAY + 0.01)
-		_check(hand.visible, "L%d: рука не показала на «Отмена»" % dead_lvl)
-		game._on_undo_pressed()
-		_check(GameState.has_skill(Tutorial.UNDO) and not coach.dimmed and not hand.visible,
-				"L%d: после отмены навык не засчитан или поле/рука остались" % dead_lvl)
-		dead = _find_dead_end_move(game)
-		if not dead.is_empty():
-			_place(game, dead[0], dead[1])
-			_check(game.dead_end and not coach.dimmed, "L%d: второй тупик снова тушит поле" % dead_lvl)
-			game._on_undo_pressed()
-		if not _quick:
-			await get_tree().create_timer(TutorialCoach.DIM_TIME + 0.1).timeout
-			_check(game.board.modulate == Color.WHITE, "L%d: поле осталось притушенным" % dead_lvl)
+	if _check(dead_lvl > 0, "не нашлось уровня с тупиковым ходом после обучения"):
+		_drop(game, dead[0], dead[1])
+		coach.countdown = 0.0
+		coach.tick(0.5)
+		_check(game.has_mistake() and not hand.visible and game.board.modulate == Color.WHITE,
+				"L%d: первая ошибка — рука или притушенное поле (урок отмены убран в 20.1a)" % dead_lvl)
+		game.flush_mistake()
+		coach.tick(0.016)
+		_check(not game.has_mistake() and not hand.visible, "L%d: ошибочный блок не вернулся или появилась рука" % dead_lvl)
 
 	# Долгий простой на уровнях HINT_FROM..HINT_TO — пульс подсказки, пока ей не пользовались.
 	game.start_level(Tutorial.HINT_FROM)
@@ -5144,11 +5156,12 @@ func _test_tutorial(game: Game) -> void:
 	coach.tick(0.016)
 	_check(not coach.hint_offered, "подсказку предлагают тому, кто ей уже пользовался")
 	GameState.reset_progress()
-	print("  обучение: навыки 1–%d, рука, подпись и причины, уровень %d без напутствий, отмена в тупике, подсказка" % [
+	print("  обучение: навыки 1–%d, рука, подпись и причины, уровень %d без напутствий, первая ошибка без урока, подсказка" % [
 			guard, guard + 1])
 
 
-## Ход игрока перетаскиванием: блок из слота встаёт на r (как DragController.dropped).
+## Ход игрока перетаскиванием: блок из слота отпущен на r (сигнал DragController.dropped → Game._on_dropped):
+## тупиковый — ошибка (20.1a), остальные — commit_place.
 func _drop(game: Game, slot: int, r: Rect2i) -> void:
 	var b: Block = game.tray.blocks[slot]
 	if b.cells != r.size:
@@ -5180,7 +5193,6 @@ func _test_pause(game: Game) -> void:
 	print("  пауза работает")
 
 
-## Ставит тупиковый ход, проверяет предупреждение, отмену и откат подсказкой.
 ## Ошибка (20.1a) на уровне lvl: тупиковый свой ход не засчитан — ходов не прибавилось, гнездо пустое и новый блок в
 ## него не выдан, блок на поле; сердце сгорело (на уровне с сердцами), ошибка посчитана. flush_mistake — блок снова в
 ## своём гнезде, трещины нет, место свободно. Вторая ошибка — подсказка сначала возвращает блок, потом ставит верный.
@@ -5247,14 +5259,6 @@ func _place(game: Game, slot: int, r: Rect2i) -> void:
 	if b.cells != r.size:
 		b.rotate_cells()
 	game.commit_place(b, slot, r)
-
-
-## Свой ход, как его отпускает DragController (Game._on_dropped): тупиковый — ошибка (20.1a), остальные — commit_place.
-func _drop(game: Game, slot: int, r: Rect2i) -> void:
-	var b: Block = game.tray.blocks[slot]
-	if b.cells != r.size:
-		b.rotate_cells()
-	game._on_dropped(b, slot, r)
 
 
 ## Проходит текущий уровень одними подсказками. true — уровень пройден.
@@ -6473,7 +6477,7 @@ func _play_logic_level(game: Game, tag: String, frozen: bool, info: Dictionary) 
 		return {}
 	_drop(game, int(m.slot), m.rect)
 	path.append(str(m.rect))
-	_check(game.moves.size() == 1 and not game.dead_end, "%s: ход сразу после старта не засчитан (ходов %d)" % [tag,
+	_check(game.moves.size() == 1 and not game.has_mistake(), "%s: ход сразу после старта не засчитан (ходов %d)" % [tag,
 			game.moves.size()])
 	_probe_input(game, tag, "ход сразу после старта", info, true)
 	# 2. Подсказка.
@@ -6482,23 +6486,28 @@ func _play_logic_level(game: Game, tag: String, frozen: bool, info: Dictionary) 
 			% [tag, game.moves.size(), game.hints.used]):
 		path.append("подсказка " + str(game.moves.back().rect))
 	_probe_input(game, tag, "подсказка", info, true)
-	# 3. Тупиковый ход и отмена.
+	# 3. Ошибка (20.1a): тупиковый ход не засчитан, сердце сгорело; блок возвращается в гнездо (здесь — сразу,
+	# как от нажатия на лоток: при hit-stop на весь уровень таймер возврата не ждём).
 	var mv := _find_dead_end_move(game)
 	if _check(not mv.is_empty(), "%s: тупикового хода нет" % tag):
 		var before := game.moves.size()
 		_drop(game, int(mv[0]), mv[1])
-		_check(game.dead_end and game.moves.size() == before + 1, "%s: тупиковый ход %s не распознан" % [tag, str(mv[1])])
-		path.append("тупик " + str(mv[1]))
+		_check(game.has_mistake() and game.moves.size() == before and game.hearts.mistakes == 1,
+				"%s: тупиковый ход %s не стал ошибкой (ходов %d, ошибок %d)" % [tag, str(mv[1]), game.moves.size(),
+				game.hearts.mistakes])
+		path.append("ошибка " + str(mv[1]))
 		_probe_input(game, tag, "тупиковый ход", info, true)
 		# В разгар тупика: через 0,45 с — звук ошибки, поле темнеет, трещина (без эффектов не темнеет — ждём до 0,8 с).
+		# Проба с нажатием (_probe_push) уже вернула блок в гнездо (нажатие на лоток — flush_mistake): тогда поле не
+		# темнеет, ждём 0,8 с — это тоже проверка, что ввод после ошибки не ломается.
 		var dead_ms := Time.get_ticks_msec()
 		while game.board.dimmed() <= 0.0 and Time.get_ticks_msec() < dead_ms + 800:
 			await get_tree().process_frame
 		_probe_input(game, tag, "тупик через %.2f с" % ((Time.get_ticks_msec() - dead_ms) / 1000.0), info, true)
-		game._on_undo_pressed()
-		_check(not game.dead_end and game.moves.size() == before and game.undos_used == 1,
-				"%s: отмена не сняла тупик (ходов %d, отмен %d)" % [tag, game.moves.size(), game.undos_used])
-		_probe_input(game, tag, "отмена", info, true)
+		game.flush_mistake()
+		_check(not game.has_mistake() and game.moves.size() == before and game.hearts.mistakes == 1,
+				"%s: ошибочный блок не вернулся (ходов %d, ошибок %d)" % [tag, game.moves.size(), game.hearts.mistakes])
+		_probe_input(game, tag, "блок вернулся", info, true)
 	# 4. Остальное — по решению от текущего поля; победа — в кадр последнего хода. 14.8c: пока линии не было — ход,
 	# закрывающий линию (не последний), если такой есть в лотке; после него ждём волну линии и пробуем ввод в её разгар.
 	var last_ms := 0
@@ -6541,10 +6550,10 @@ func _play_logic_level(game: Game, tag: String, frozen: bool, info: Dictionary) 
 			"%s: уровень не пройден (ходов %d из %d)" % [tag, game.moves.size(), pieces]):
 		return {}
 	var res := {"очки уровня": GameState.get_best(LOGIC_LEVEL), "звёзды": GameState.get_stars(LOGIC_LEVEL),
-			"общий счёт": GameState.total_score, "ходов": game.moves.size(), "отмен": game.undos_used,
+			"общий счёт": GameState.total_score, "ходов": game.moves.size(), "ошибок": game.hearts.mistakes,
 			"подсказок": game.hints.used, "путь": " ".join(path)}
-	# Штраф: 1 отмена + 1 подсказка × 2 = 3 → 2 звезды (Game._on_level_complete).
-	_check(GameState.level == LOGIC_LEVEL + 1 and int(res["звёзды"]) == 2 and int(res["очки уровня"]) > 0
+	# Звёзды (20.1a, Hearts.stars): 3 − 1 ошибка − 1 подсказка = 1.
+	_check(GameState.level == LOGIC_LEVEL + 1 and int(res["звёзды"]) == 1 and int(res["очки уровня"]) > 0
 			and int(res["общий счёт"]) == int(res["очки уровня"]),
 			"%s: победа не засчитана в кадр последнего хода (уровень %d, звёзды %d, очки %d, счёт %d)" % [tag,
 			GameState.level, int(res["звёзды"]), int(res["очки уровня"]), int(res["общий счёт"])])
@@ -6658,11 +6667,9 @@ func _input_problems(game: Game, play: bool, extra: BaseButton = null) -> Array[
 				res.append("нажатие на блок в гнезде %d не взято%s" % [i, _over_text(tray.slots[i])])
 		if blocks == 0:
 			res.append("в лотке нет блоков")
-		if not game.can_undo() or game.undo_button.disabled:
-			res.append("«Отмена» не сработала бы (can_undo: %s, кнопка выключена: %s)" % [game.can_undo(),
-					game.undo_button.disabled])
-		elif _probe_push and not _press_reaches(game.undo_button):
-			res.append("нажатие не дошло до «Отмены»%s" % _over_text(game.undo_button))
+		if not game.can_play():
+			res.append("ходить нельзя (сердца кончились: %s, уровень кончился: %s)" % [game.hearts.is_out(),
+					game.finished])
 		if not game.hints.can_request() or game.hint_button.disabled:
 			res.append("«Подсказка» не сработала бы (can_request: %s, кнопка выключена: %s)" % [game.hints.can_request(),
 					game.hint_button.disabled])
@@ -6898,10 +6905,13 @@ func _test_hover(game: Game) -> void:
 	_check(Desktop.is_hovered(btn), "мышь над кнопкой: нет наведения")
 	btn.mouse_exited.emit()
 	_check(not Desktop.is_hovered(btn), "мышь ушла: наведение осталось")
-	var undo: Button = game.undo_button
-	if undo.disabled:
-		undo.gui_input.emit(InputEventMouseMotion.new())
-		_check(not Desktop.is_hovered(undo), "выключенная кнопка откликается на наведение")
+	var off: Button = game.hint_button  # 20.1a: «Отмены» нет; «Подсказка» выключена, когда сердца кончились
+	var off_was := off.disabled
+	off.disabled = true
+	off.gui_input.emit(InputEventMouseMotion.new())
+	_check(not Desktop.is_hovered(off), "выключенная кнопка откликается на наведение")
+	off.mouse_exited.emit()
+	off.disabled = off_was
 	var tray := game.tray
 	var empty := tray.blocks.find(null)
 	var full := 0 if tray.blocks[0] != null else (1 if tray.blocks[1] != null else 2)
@@ -7163,28 +7173,37 @@ func _shadow_problem(b: Block, lifted: bool) -> String:
 
 # --- 11. Кнопки и значки из PNG (этап 13.2b) ----------------------------------------
 
-## Пауза, заново, отмена, подсказка — CandyButton (STYLE, разделы 4, 7, 8): лицо из PNG на 256/240
+## Пауза, заново, подсказка — CandyButton (20.1a: «Отмены» нет) (STYLE, разделы 4, 7, 8): лицо из PNG на 256/240
 ## больше видимого круга, тень SoftShadow, состояния «выключена» и «нажата», значки подсказки.
 func _test_buttons(game: Game) -> void:
 	_section("Кнопки (13.2b)")
 	game.start_level(12)
 	await _frames(3)
 	var bad := ""
-	for b: Button in [game.pause_button, game.restart_button, game.undo_button, game.hint_button]:
+	for b: Button in [game.pause_button, game.restart_button, game.hint_button]:
 		var p := _candy_problem(b)
 		if p != "":
 			bad += " %s: %s;" % [b.name, p]
 	if not _check(bad == "", "кнопки:" + bad):
 		return
 
-	# Выключена: лицо 45 %, без тени; включилась — обратно.
-	var undo := game.undo_button as CandyButton
-	_check(undo.disabled and undo.looks_disabled and is_equal_approx(undo.face.modulate.a, CandyButton.DISABLED_ALPHA)
-			and not undo.face_shadow.visible, "выключенная «Отмена»: лицо %.2f, тень %s" % [undo.face.modulate.a, undo.face_shadow.visible])
-	game.hints.give()
+	# Выключена: лицо 45 %, без тени; включилась — обратно. 20.1a: «Отмены» нет — выключаем «Подсказку»: сердца
+	# кончились (Game.update_hud), потом снова есть.
+	var off := game.hint_button as CandyButton
+	var hearts_max := game.hearts.max_hearts
+	game.hearts.reset(3)
+	for _k in 3:
+		game.hearts.lose()
+	game.update_hud()
 	await _frames(3)
-	_check(not undo.disabled and not undo.looks_disabled and is_equal_approx(undo.face.modulate.a, 1.0)
-			and undo.face_shadow.visible, "«Отмена» включилась, а вид остался выключенным")
+	_check(off.disabled and off.looks_disabled and is_equal_approx(off.face.modulate.a, CandyButton.DISABLED_ALPHA)
+			and not off.face_shadow.visible, "выключенная «Подсказка» (сердца кончились): лицо %.2f, тень %s" % [
+			off.face.modulate.a, off.face_shadow.visible])
+	game.hearts.reset(hearts_max)
+	game.update_hud()
+	await _frames(3)
+	_check(not off.disabled and not off.looks_disabled and is_equal_approx(off.face.modulate.a, 1.0)
+			and off.face_shadow.visible, "«Подсказка» включилась, а вид остался выключенным")
 
 	# Нажата: лицо ×0,92, тень вдвое ближе (через перерисовку Button и твин), отпустили — обратно.
 	var hint := game.hint_button as CandyButton

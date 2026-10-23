@@ -21,6 +21,11 @@
                                   нашлось несколько копий — показывает их последние записи журнала и ждёт
                                   --from ПАПКА (не угадывает: даты файлов у копий бывают одинаковые).
 
+Беседа вне Pod (24.10): /files/pod не смонтирован — save.py пишет только архив в файлы беседы
+(/files/conversation/shikaku_blocks_latest.zip) и печатает, куда его скопировать в Pod инструментом files `copy`
+(`conversation-<id>/shikaku_blocks_latest.zip` -> `pod-<podId>/backups/shikaku_blocks_latest.zip`). Pod проекта —
+«шикаку» (vlt_iNDjfx6LL931Sa). Лучше работать в беседе внутри Pod: тогда всё как раньше.
+
 Что не сохраняется: кэши (__pycache__, *.pyc, tools/.levels_cache.jsonl), .godot/, build/.
 Что есть в Pod, но не идёт в архив (ZIP_SKIP, с 07.10): кадры проверок docs/style_frames/G<этап>_*.png — их
 пересобирают tools/*_preview.py (список — docs/style_frames/README.md). Архив от этого легче на ≈10 МБ; если Pod
@@ -128,8 +133,7 @@ def find_pod_project(choice: str = "") -> str:
     return found[0]
 
 
-def make_zip(src: str, name: str, conv: bool = False) -> str:
-    os.makedirs(BACKUPS, exist_ok=True)
+def make_zip(src: str, name: str, conv: bool = False, pod: bool = True) -> str:
     tmp = os.path.join("/tmp", name)
     files = walk(src)
     left_out = [r for r in files if any(fnmatch.fnmatch(r, p) for p in ZIP_SKIP)]
@@ -142,6 +146,14 @@ def make_zip(src: str, name: str, conv: bool = False) -> str:
         bad = z.testzip()
         if bad:
             sys.exit(f"Архив повреждён: {bad}")
+    if not pod:  # беседа вне Pod: архив только в файлы беседы (без .part — иначе тип файла x-partial-download)
+        out = os.path.join(CONV, name)
+        shutil.copyfile(tmp, out)
+        if not same(tmp, out):
+            sys.exit(f"Копия архива в беседе не совпала: {out}")
+        print(f"архив (только беседа): {out} ({len(files)} файлов, {os.path.getsize(out) // 1024} КБ)")
+        return out
+    os.makedirs(BACKUPS, exist_ok=True)
     out = os.path.join(BACKUPS, name)
     shutil.copyfile(tmp, out + ".part")
     os.replace(out + ".part", out)
@@ -191,6 +203,17 @@ def main() -> None:
 
     if not os.path.isdir(LOCAL):
         sys.exit(f"Нет {LOCAL}. Сначала: python3 save.py --pull")
+    if not os.path.isdir(POD_ROOT):
+        # Беседа вне Pod (24.10): Pod не смонтирован — только архив в беседе, в Pod его копирует агент.
+        if a.dry:
+            print(f"{POD_ROOT} не смонтирован (беседа вне Pod) — сравнивать не с чем")
+            return
+        out = make_zip(LOCAL, a.zip or LATEST, pod=False)
+        print("Pod не смонтирован. Скопируйте архив в Pod инструментом files copy:\n"
+              f"  source: conversation-<id>/{os.path.basename(out)}\n"
+              f"  dest:   pod-vlt_iNDjfx6LL931Sa/backups/{os.path.basename(out)}")
+        print(f"готово за {time.time() - t0:.1f} с")
+        return
     s, d, new, changed, extra = diff(LOCAL, POD)
     for r in new:
         print("+", r)
