@@ -49,6 +49,7 @@ get_theme_font_size get_theme_font atr tr add_theme_color_override add_theme_con
 get_theme_constant texture pressed disabled toggled button_pressed tooltip_text set_anchors_and_offsets_preset
 resized minimum_size_changed get_combined_minimum_size icon theme_type_variation get_instance_id
 find_children get_path_to queue_redraw texture_filter
+add_theme_stylebox_override focus_mode auto_translate_mode is_visible_in_tree toggle_mode set_pressed_no_signal get_node
 """.split())
 
 
@@ -405,6 +406,14 @@ for srel, info in scripts.items():
             src_t = local.get(a.group(2)) or fields.get(a.group(2))
             if src_t is not None:
                 local[a.group(1)] = src_t
+        # var g := … as Game / var h := Hearts.new() — тип назван явно (24.10: так объявлена игра в половине
+        # проверок самопроверки, и устаревшие обращения вроде game._on_undo_pressed() проходили мимо)
+        for a in re.finditer(r"\bvar\s+(\w+)\s*:=[^\n]*?\bas\s+([A-Z]\w*)[ \t]*$", code[m.start():end], re.M):
+            if a.group(2) in by_class:
+                local[a.group(1)] = by_class[a.group(2)]
+        for a in re.finditer(r"\bvar\s+(\w+)\s*:=\s*([A-Z]\w*)\.new\(", code[m.start():end]):
+            if a.group(2) in by_class:
+                local[a.group(1)] = by_class[a.group(2)]
         spans.append((m.start(), end, local))
 
     def type_at(v, pos):

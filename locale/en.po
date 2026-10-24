@@ -21,8 +21,26 @@ msgstr "Super!"
 msgid "Невероятно!"
 msgstr "Incredible!"
 
-msgid "Сердца кончились — начни заново"
-msgstr "Out of hearts — start over"
+msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
+msgstr "OUT OF HEARTS"
+
+msgid "+1 сердце"
+msgstr "+1 heart"
+
+msgid "Посмотри рекламу — и продолжай с того же места"
+msgstr "Watch an ad and continue from here"
+
+msgid "Продолжай с того же места"
+msgstr "Continue from where you left off"
+
+msgid "Начни уровень заново"
+msgstr "Start the level over"
+
+msgid "ЗАНОВО"
+msgstr "RESTART"
+
+msgid "Реклама не загрузилась"
+msgstr "The ad didn't load"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "Watch the ad to unlock the hint"

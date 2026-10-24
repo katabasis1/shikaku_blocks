@@ -19,8 +19,17 @@ STRINGS = {
     "Отлично!": ("Great!", "Harika!"),
     "Супер!": ("Super!", "Süper!"),
     "Невероятно!": ("Incredible!", "İnanılmaz!"),
-    # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Это сообщение — до окна 20.1b.
-    "Сердца кончились — начни заново": ("Out of hearts — start over", "Canın kalmadı — baştan başla"),
+    # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Окно «Сердца закончились» (20.1b,
+    # hearts_out_panel.gd / .tscn)
+    "СЕРДЦА ЗАКОНЧИЛИСЬ": ("OUT OF HEARTS", "CANIN KALMADI"),
+    "+1 сердце": ("+1 heart", "+1 can"),
+    "Посмотри рекламу — и продолжай с того же места": (
+        "Watch an ad and continue from here",
+        "Reklam izle, kaldığın yerden devam et"),
+    "Продолжай с того же места": ("Continue from where you left off", "Kaldığın yerden devam et"),
+    "Начни уровень заново": ("Start the level over", "Bölüme baştan başla"),
+    "ЗАНОВО": ("RESTART", "YENİDEN"),
+    "Реклама не загрузилась": ("The ad didn't load", "Reklam yüklenemedi"),
     "Подсказка откроется после просмотра рекламы": (
         "Watch the ad to unlock the hint",
         "İpucu için reklamı izle"),

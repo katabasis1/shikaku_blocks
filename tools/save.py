@@ -24,7 +24,8 @@
 Беседа вне Pod (24.10): /files/pod не смонтирован — save.py пишет только архив в файлы беседы
 (/files/conversation/shikaku_blocks_latest.zip) и печатает, куда его скопировать в Pod инструментом files `copy`
 (`conversation-<id>/shikaku_blocks_latest.zip` -> `pod-<podId>/backups/shikaku_blocks_latest.zip`). Pod проекта —
-«шикаку» (vlt_iNDjfx6LL931Sa). Лучше работать в беседе внутри Pod: тогда всё как раньше.
+«шикаку» (с 24.10 01:00 — vlt_HbVDthspJj3MaG; прежний — vlt_iNDjfx6LL931Sa). Лучше работать в беседе внутри
+Pod: тогда всё как раньше.
 
 Что не сохраняется: кэши (__pycache__, *.pyc, tools/.levels_cache.jsonl), .godot/, build/.
 Что есть в Pod, но не идёт в архив (ZIP_SKIP, с 07.10): кадры проверок docs/style_frames/G<этап>_*.png — их
@@ -211,7 +212,7 @@ def main() -> None:
         out = make_zip(LOCAL, a.zip or LATEST, pod=False)
         print("Pod не смонтирован. Скопируйте архив в Pod инструментом files copy:\n"
               f"  source: conversation-<id>/{os.path.basename(out)}\n"
-              f"  dest:   pod-vlt_iNDjfx6LL931Sa/backups/{os.path.basename(out)}")
+              f"  dest:   pod-vlt_HbVDthspJj3MaG/backups/{os.path.basename(out)}")
         print(f"готово за {time.time() - t0:.1f} с")
         return
     s, d, new, changed, extra = diff(LOCAL, POD)

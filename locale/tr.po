@@ -21,8 +21,26 @@ msgstr "Süper!"
 msgid "Невероятно!"
 msgstr "İnanılmaz!"
 
-msgid "Сердца кончились — начни заново"
-msgstr "Canın kalmadı — baştan başla"
+msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
+msgstr "CANIN KALMADI"
+
+msgid "+1 сердце"
+msgstr "+1 can"
+
+msgid "Посмотри рекламу — и продолжай с того же места"
+msgstr "Reklam izle, kaldığın yerden devam et"
+
+msgid "Продолжай с того же места"
+msgstr "Kaldığın yerden devam et"
+
+msgid "Начни уровень заново"
+msgstr "Bölüme baştan başla"
+
+msgid "ЗАНОВО"
+msgstr "YENİDEN"
+
+msgid "Реклама не загрузилась"
+msgstr "Reklam yüklenemedi"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "İpucu için reklamı izle"

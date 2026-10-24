@@ -285,6 +285,10 @@ var _can_review: bool = false
 ## отладочной сборке; selftest подменяет.
 var review_stub: bool = OS.is_debug_build()
 
+## Итог последней рекламы (Analytics.ad: «rewarded» / «closed» / «not_shown» / «timeout» / «shown»), ставится до
+## колбэка. Окно «Сердца закончились» (20.1b) по нему отличает «закрыл до награды» (окно остаётся) от «не
+## показалась» (один раз бесплатно): колбэку rewarded приходит только bool.
+var last_ad_result: String = ""
 var _ad_kind: StringName = AD_NONE
 var _ad_callback: Callable = Callable()
 var _ad_opened: bool = false
@@ -366,6 +370,7 @@ func show_interstitial(on_done: Callable) -> void:
 ## Реклама за награду. on_done(rewarded: bool) вызывается всегда.
 func show_rewarded(on_done: Callable) -> void:
 	if not is_available or _ad_kind != AD_NONE:
+		last_ad_result = "not_shown"
 		on_done.call_deferred(false)
 		return
 	_start_ad(AD_REWARDED, on_done)
@@ -397,6 +402,7 @@ func _finish_ad(result: String = "", shown: bool = true) -> void:
 		return
 	if result.is_empty():
 		result = ad_result(kind, _ad_opened and shown, rewarded)
+	last_ad_result = result
 	Analytics.ad(kind, result)
 	if not cb.is_valid():
 		return
