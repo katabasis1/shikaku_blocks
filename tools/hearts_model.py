@@ -1,70 +1,51 @@
 #!/usr/bin/env python3
-"""Сердца (этап 20.1, PLAN 20.1): Python-копия правил scripts/hearts.gd и модель игроков по уровням игры.
+"""Сердца (этап 20, PLAN 20.1–20.2): Python-копия правил scripts/hearts.gd и разбор тупиков уровней.
 
-1. Правила. Класс Hearts повторяет scripts/hearts.gd один в один (max_for, reset, lose, is_out, can_revive,
-   can_continue_free, revive, stars), revive_gated — как Game.revive (возрождение только когда сердца кончились
-   и возрождений меньше revive_max; бесплатное — один раз и если флаг revive_free_on_fail). Таблицы случаев
-   MAX_FOR_CASES и CASES прогоняются здесь и в самопроверке (tests/selftest.gd, _test_hearts): их GDScript-текст
-   между метками «hearts_model: begin / end» создаёт этот скрипт. Поменял правила или таблицу — перезапусти
-   с --write (перепишет кусок selftest.gd), без --write расхождение — ошибка.
+1. Правила. Класс Hearts — тот же набор полей и функций, что у scripts/hearts.gd. Таблицы MAX_FOR_CASES и
+   SCENARIOS — сценарии с ожидаемым итогом; tests/selftest.gd (_test_hearts_rules) гоняет те же таблицы в Godot.
+   Поменял правила — поменяй обе копии и таблицы, запусти `python3 tools/hearts_model.py --rules`.
 
-2. Модель игрока (--play). Уровни игры 1..1000 — как в игре (tools/make_levels.py: pack_level). Лоток — три
-   гнезда и очередь в порядке level_data.pieces, освободившееся гнездо берёт следующий блок (Tray.fill_slot).
-   Допустимый ход — блок лотка в любой ориентации, без нахлёста и препятствий, накрывает ровно одно число своей
-   площади («?» — любой), цветные клетки — блоком своей площади (как Board / make_lab.random_play). Остальное
-   в игре просто не встаёт (красный призрак) — сердце цело.
-   Ошибка — допустимый ход вне решения: решение у каждого уровня одно (make_levels.py это проверяет), значит,
-   после такого хода поле не заполнить, и решатель игры скажет UNSOLVABLE. --verify сверяет это с решателем
-   (tools/model.py: solve) на всех допустимых ходах выборки позиций.
-   Ошибочный блок возвращается в лоток, поле не меняется (20.1a), поэтому позиция — всегда часть решения.
-   Игроки (решают «в уме» правилами оценщика сложности tools/level_design.py, по числам на поле — набор блоков
-   игрок не видит; у «?» — формы набора; каждый свой неверный ход запоминает и больше не рассматривает):
-     guess  — без логики: случайный допустимый ход (перебор «поставил — трещина»);
-     simple — правила 1–2 (у числа один вариант, клетку накрывает один вариант);
-     logic  — правила 1–4 (ещё клетка одного числа и пересечение), без проб.
-   Выведенное в уме место ставится, если блок для него есть в лотке; иначе — догадка среди живых мест числа,
-   у которого их меньше всего. Уровень, решаемый правилами 1–4 целиком, logic проходит без ошибок — ошибки у
-   него только там, где нужна проба (make_levels: «нужна проба»), и это цена сердец для думающего игрока.
-   Уровни 1..GUARD_LEVELS в игре не дают поставить тупиковый ход (страховка обучения) — там ошибок не бывает,
-   модель их пропускает.
-   Итог — по участкам уровней: ошибок за попытку, доля попыток с ошибкой, доля попыток, где сердца кончились
-   (ошибок ≥ сердец), средние звёзды (без подсказок; кончились — возрождение, 1 звезда) и доля тупиковых среди
-   допустимых первых ходов. --report пишет tools/hearts_report.txt.
+2. Тупики (20.2, «причина тупика»). Ошибка — ход, после которого поле не заполнить (решатель: UNSOLVABLE). Чтобы
+   подпись была честной, а не «так нельзя», важно, видно ли игроку, почему ход тупиковый. Для уровней основного пути
+   (с hearts_from_level) берём состояния по ходу решения: пусто, затем блоки решения в случайном (по уровню —
+   одинаковом) порядке; в каждом — все ходы, которые игра примет (одно число, площадь, свободно, цвет; форма есть
+   в лотке). Тупиковые делятся на:
+     number   — у какого-то числа не осталось ни одного места (подсветить число);
+     cell     — пустую клетку больше не накрыть ни одним местом ни одного числа (подсветить клетку);
+     forced:k — видно после k вынужденных блоков (у числа одно место, ставим его) — число или клетка;
+     deep     — вынужденные кончились, а противоречия не видно (только общая подпись);
+     pieces   — места у всех чисел есть, но не хватает блоков нужной формы (два числа на один оставшийся блок).
+   Ещё по уровню: доля тупиковых среди принимаемых ходов и «цена угадывания» — сколько ошибок в среднем сделает
+   игрок, который ставит случайный принимаемый ход и не повторяет уже сгоревший: на каждом шаге d / (g + 1),
+   d — тупиковых ходов, g — верных (при одном решении верный ход — блок решения).
+   Итог — tools/hearts_report.txt; на нём решается, хватает ли 20.2 подписи «Так остальные блоки не поместятся».
 
-Запуск из корня проекта:
-    python3 tools/hearts_model.py                 # правила и сверка таблицы с selftest.gd
-    python3 tools/hearts_model.py --write         # переписать таблицу в selftest.gd
-    python3 tools/hearts_model.py --play --report # модель игроков 4..1000 → tools/hearts_report.txt
-    python3 tools/hearts_model.py --play --levels 4-60 --runs 400
-    python3 tools/hearts_model.py --verify --levels 4-200
-Код выхода 0 — правила сходятся, таблица в selftest.gd та же, --verify без расхождений.
+Запуск:
+    python3 tools/hearts_model.py --rules          # только правила
+    python3 tools/hearts_model.py --to 300         # правила и тупики уровней 4..300 (по умолчанию 4..200)
 """
 import argparse
 import os
 import random
 import sys
-import time
+from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_levels as ML  # noqa: E402
+import model as M  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SELFTEST = os.path.join(ROOT, "tests", "selftest.gd")
 REPORT = os.path.join(ROOT, "tools", "hearts_report.txt")
-BEGIN = "# hearts_model: begin"
-END = "# hearts_model: end"
 
-# Как в autoload/ysdk.gd (флаги getFlags, 16.2) и scripts/tutorial.gd.
+# Как YSDK.DEFAULT_* (autoload/ysdk.gd).
 DEFAULT_HEARTS = 3
 DEFAULT_HEARTS_FROM_LEVEL = 4
 DEFAULT_REVIVE_MAX = 3
 DEFAULT_REVIVE_FREE_ON_FAIL = True
-GUARD_LEVELS = 3
-GAME_LEVELS = 1000
-RANGES = [(4, 10), (11, 25), (26, 48), (49, 60), (61, 100), (101, 150), (151, 200), (201, 300), (301, 400),
-          (401, 500), (501, 1000)]
+FORCED_MAX = 12
 
 
-# --- 1. Правила: копия scripts/hearts.gd ------------------------------------------------------------------------
+# --- 1. Правила (копия scripts/hearts.gd) --------------------------------------
 
 class Hearts:
     STARS_MAX = 3
@@ -120,512 +101,334 @@ class Hearts:
         return min(max(self.STARS_MAX - self.mistakes - max(hints_used, 0), 1), self.STARS_MAX)
 
 
-def revive_gated(h, free, revive_max, free_allow):
-    """Game.revive: False — сейчас нельзя (сердца не кончились, возрождения исчерпаны, бесплатное уже было)."""
-    if not h.can_revive(revive_max):
-        return False
-    if free and not h.can_continue_free(free_allow):
-        return False
-    h.revive(free)
-    return True
+# (уровень, задача дня, «Лаборатория», флаг hearts, флаг hearts_from_level) -> сердец на попытку.
+# Та же таблица — tests/selftest.gd, HEARTS_MAX_FOR_CASES.
+MAX_FOR_CASES = [
+    ((1, False, False, 3, 4), 0),     # обучение со страховкой — без сердец
+    ((3, False, False, 3, 4), 0),
+    ((4, False, False, 3, 4), 3),     # первый уровень с сердцами
+    ((250, False, False, 3, 4), 3),
+    ((1, True, False, 3, 4), 3),      # задача дня — всегда с сердцами, даже если её уровень меньше from_level
+    ((50, False, True, 3, 4), 0),     # «Лаборатория» — без сердец
+    ((50, False, False, 0, 4), 0),    # флаг hearts = 0 — без предела (A/B)
+    ((50, True, False, 0, 4), 0),
+    ((9, False, False, 5, 10), 0),    # флаги сдвинули начало
+    ((10, False, False, 5, 10), 5),
+]
+
+# Сценарий попытки: имя, сердец на попытку, ходы, подсказок, возрождений можно (revive_max),
+# бесплатное продолжение разрешено (revive_free_on_fail) -> ожидание
+# (осталось, ошибок, возрождений, кончились, можно возродиться, можно бесплатно, звёзд).
+# Ходы: L — ошибка (lose), R — возрождение за рекламу, F — бесплатное продолжение.
+# Та же таблица — tests/selftest.gd, HEARTS_SCENARIOS.
+SCENARIOS = [
+    ("без ошибок", 3, "", 0, 3, True, (3, 0, 0, False, False, True, 3)),
+    ("одна ошибка", 3, "L", 0, 3, True, (2, 1, 0, False, False, True, 2)),
+    ("ошибка и подсказка", 3, "L", 1, 3, True, (2, 1, 0, False, False, True, 1)),
+    ("две ошибки", 3, "LL", 0, 3, True, (1, 2, 0, False, False, True, 1)),
+    ("три подсказки — не ниже 1", 3, "", 3, 3, True, (3, 0, 0, False, False, True, 1)),
+    ("сердца кончились", 3, "LLL", 0, 3, True, (0, 3, 0, True, True, True, 1)),
+    ("ошибка при нуле — не ниже 0", 3, "LLLL", 0, 3, True, (0, 4, 0, True, True, True, 1)),
+    ("возрождение за рекламу", 3, "LLLR", 0, 3, True, (1, 3, 1, False, False, True, 1)),
+    ("бесплатное продолжение", 3, "LLLF", 0, 3, True, (1, 3, 1, False, False, False, 1)),
+    ("второе бесплатное нельзя", 3, "LLLFL", 0, 3, True, (0, 4, 1, True, True, False, 1)),
+    ("бесплатное выключено флагом", 3, "LLL", 0, 3, False, (0, 3, 0, True, True, False, 1)),
+    ("возрождения исчерпаны", 3, "LLLRLRLRL", 0, 3, True, (0, 6, 3, True, False, True, 1)),
+    ("возрождений 0 (флаг)", 3, "LLL", 0, 0, True, (0, 3, 0, True, False, True, 1)),
+    ("пять сердец, две ошибки", 5, "LL", 0, 3, True, (3, 2, 0, False, False, True, 1)),
+    ("одно сердце", 1, "L", 0, 3, True, (0, 1, 0, True, True, True, 2)),
+    ("без предела: ошибки считаются", 0, "LL", 0, 3, True, (0, 2, 0, False, False, True, 1)),
+    ("без предела: одна ошибка", 0, "L", 0, 3, True, (0, 1, 0, False, False, True, 2)),
+]
 
 
-def apply_ops(h, ops, revive_max, free_allow):
-    """ops: L — ошибка (Hearts.lose), R — возрождение за рекламу, F — бесплатное продолжение (через revive_gated)."""
+def run_scenario(n_max, ops, hints, revive_max, allow_free):
+    h = Hearts()
+    h.reset(n_max)
     for op in ops:
         if op == "L":
             h.lose()
         elif op == "R":
-            revive_gated(h, False, revive_max, free_allow)
+            assert h.can_revive(revive_max), "возрождение вне правил"
+            h.revive(False)
         elif op == "F":
-            revive_gated(h, True, revive_max, free_allow)
+            assert h.can_revive(revive_max) and h.can_continue_free(allow_free), "бесплатное вне правил"
+            h.revive(True)
         else:
-            raise ValueError("неизвестный шаг %r" % op)
+            raise ValueError(op)
+    return (h.left, h.mistakes, h.revives, h.is_out(), h.can_revive(revive_max), h.can_continue_free(allow_free),
+            h.stars(hints))
 
 
-# Hearts.max_for: [уровень, задача дня, «Лаборатория», флаг hearts, флаг hearts_from_level, ждём].
-MAX_FOR_CASES = [
-    [1, False, False, 3, 4, 0],     # обучение со страховкой — без сердец
-    [3, False, False, 3, 4, 0],
-    [4, False, False, 3, 4, 3],     # с 4-го — три
-    [250, False, False, 3, 4, 3],
-    [2, True, False, 3, 4, 3],      # задача дня — с сердцами всегда
-    [20, False, True, 3, 4, 0],     # «Лаборатория» — без них
-    [20, False, False, 0, 4, 0],    # флаг hearts = 0 — без предела
-    [2, True, False, 0, 4, 0],
-    [9, False, False, 5, 10, 0],
-    [10, False, False, 5, 10, 5],
-    [1, False, False, 1, 1, 1],
-]
-
-# Попытка: [сердец, шаги, подсказок, revive_max, revive_free_on_fail,
-#           ждём: осталось, ошибок, возрождений, кончились, можно возродиться, бесплатное было, звёзды].
-CASES = [
-    [3, "", 0, 3, True, 3, 0, 0, False, False, False, 3],
-    [3, "L", 0, 3, True, 2, 1, 0, False, False, False, 2],
-    [3, "LL", 0, 3, True, 1, 2, 0, False, False, False, 1],
-    [3, "", 1, 3, True, 3, 0, 0, False, False, False, 2],          # подсказка — минус звезда
-    [3, "L", 1, 3, True, 2, 1, 0, False, False, False, 1],
-    [3, "", 5, 3, True, 3, 0, 0, False, False, False, 1],          # не ниже 1
-    [3, "R", 0, 3, True, 3, 0, 0, False, False, False, 3],         # сердца не кончились — возрождения нет
-    [3, "LLL", 0, 3, True, 0, 3, 0, True, True, False, 1],
-    [3, "LLLR", 0, 3, True, 1, 3, 1, False, False, False, 1],      # после возрождения — 1 звезда
-    [3, "LLLRL", 0, 3, True, 0, 4, 1, True, True, False, 1],
-    [3, "LLLRLRLRL", 0, 3, True, 0, 6, 3, True, False, False, 1],  # revive_max исчерпан
-    [3, "LLLR", 0, 0, True, 0, 3, 0, True, False, False, 1],       # revive_max = 0
-    [3, "LLLF", 0, 3, True, 1, 3, 1, False, False, True, 1],       # реклама не показалась — бесплатно
-    [3, "LLLFLF", 0, 3, True, 0, 4, 1, True, True, True, 1],       # бесплатно — один раз
-    [3, "LLLFLR", 0, 3, True, 1, 4, 2, False, False, True, 1],     # дальше — за рекламу
-    [3, "LLLF", 0, 3, False, 0, 3, 0, True, True, False, 1],       # revive_free_on_fail = 0
-    [1, "L", 0, 3, True, 0, 1, 0, True, True, False, 2],          # сам Hearts: 3 − 1; в игре без возрождения не выиграть
-    [5, "LL", 0, 3, True, 3, 2, 0, False, False, False, 1],        # флаг hearts = 5: звёзды всё равно 3 − ошибки
-    [0, "", 0, 3, True, 0, 0, 0, False, False, False, 3],          # без предела: сердец не видно
-    [0, "L", 0, 3, True, 0, 1, 0, False, False, False, 2],         # ошибки считаются
-    [0, "LLLL", 0, 3, True, 0, 4, 0, False, False, False, 1],      # и не кончаются
-    [0, "LLLR", 0, 3, True, 0, 3, 0, False, False, False, 1],
-    [-2, "", 0, 3, True, 0, 0, 0, False, False, False, 3],
-]
+SELFTEST = os.path.join(ROOT, "tests", "selftest.gd")
 
 
-def run_case(c):
-    n, ops, hints, rmax, allow = c[:5]
-    h = Hearts()
-    h.reset(n)
-    apply_ops(h, ops, rmax, allow)
-    return [h.left, h.mistakes, h.revives, h.is_out(), h.can_revive(rmax), h.free_used, h.stars(hints)]
+def gd_table(name):
+    """Таблица const NAME := [...] из tests/selftest.gd как список Python (true/false → True/False)."""
+    import ast
+    import re
+    with open(SELFTEST, encoding="utf-8") as f:
+        src = f.read()
+    m = re.search(r"^const %s := (\[.*?^\])" % name, src, re.S | re.M)
+    if not m:
+        return None
+    body = re.sub(r"\btrue\b", "True", re.sub(r"\bfalse\b", "False", m.group(1)))
+    return ast.literal_eval(body)
+
+
+def check_selftest_tables():
+    """Таблицы selftest.gd (HEARTS_MAX_FOR_CASES, HEARTS_SCENARIOS) — те же, что здесь."""
+    bad = 0
+    want_max = [list(args) + [n] for args, n in MAX_FOR_CASES]
+    want_sc = [[name, n, ops, hints, rmax, free, list(res)] for name, n, ops, hints, rmax, free, res in SCENARIOS]
+    for name, want in (("HEARTS_MAX_FOR_CASES", want_max), ("HEARTS_SCENARIOS", want_sc)):
+        got = gd_table(name)
+        if got is None:
+            bad += 1
+            print("selftest.gd: нет таблицы %s" % name)
+        elif got != want:
+            bad += 1
+            extra = [r for r in got if r not in want]
+            miss = [r for r in want if r not in got]
+            print("selftest.gd: %s разошлась с Python — лишние %s, нет %s" % (name, extra, miss))
+    return bad
 
 
 def check_rules():
-    errs = []
-    for c in MAX_FOR_CASES:
-        got = Hearts.max_for(*c[:5])
-        if got != c[5]:
-            errs.append("max_for%s = %d, ждали %d" % (tuple(c[:5]), got, c[5]))
-    for c in CASES:
-        got = run_case(c)
-        if got != c[5:]:
-            errs.append("случай %s: %s, ждали %s" % (c[:5], got, c[5:]))
-    # Свойство, не только таблица: при трёх сердцах без подсказок и возрождений звёзды = оставшиеся сердца
-    # (PLAN 20.1: «звёзды = оставшиеся сердца»).
-    for k in range(3):
-        h = Hearts()
-        h.reset(3)
-        for _ in range(k):
-            h.lose()
-        if h.stars(0) != h.left:
-            errs.append("3 сердца, ошибок %d: звёзд %d, сердец %d" % (k, h.stars(0), h.left))
-    return errs
+    bad = check_selftest_tables()
+    for args, want in MAX_FOR_CASES:
+        got = Hearts.max_for(*args)
+        if got != want:
+            bad += 1
+            print("max_for%s = %d, ждали %d" % (args, got, want))
+    for name, n_max, ops, hints, rmax, free, want in SCENARIOS:
+        got = run_scenario(n_max, ops, hints, rmax, free)
+        if got != want:
+            bad += 1
+            print("«%s»: %s, ждали %s" % (name, got, want))
+    print("правила сердец: случаев %d, расхождений %d (с таблицами tests/selftest.gd)"
+          % (len(MAX_FOR_CASES) + len(SCENARIOS), bad))
+    return bad == 0
 
 
-def gd_value(v):
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, str):
-        return '"%s"' % v
-    return str(v)
+# --- 2. Тупики уровней (20.2) ---------------------------------------------------
+
+def blocked_cells(d):
+    out = set(tuple(c) for c in d.get("holes", []))
+    for (x0, y0, w, h) in d.get("pinned", []):
+        for y in range(y0, y0 + h):
+            for x in range(x0, x0 + w):
+                out.add((x, y))
+    return out
 
 
-def gd_table():
-    """Кусок tests/selftest.gd между метками: таблицы как константы GDScript."""
-    out = [BEGIN + " (создано tools/hearts_model.py --write — не правьте вручную)"]
-    out.append("## Hearts.max_for: [уровень, задача дня, «Лаборатория», флаг hearts, флаг hearts_from_level, ждём].")
-    out.append("const HEARTS_MAX_FOR_CASES := [")
-    for c in MAX_FOR_CASES:
-        out.append("\t[%s]," % ", ".join(gd_value(v) for v in c))
-    out.append("]")
-    out.append("## Попытка: [сердец, шаги (L — ошибка, R — возрождение, F — бесплатное), подсказок, revive_max,")
-    out.append("## revive_free_on_fail, ждём: осталось, ошибок, возрождений, кончились, можно возродиться,")
-    out.append("## бесплатное было, звёзды].")
-    out.append("const HEARTS_CASES := [")
-    for c in CASES:
-        out.append("\t[%s]," % ", ".join(gd_value(v) for v in c))
-    out.append("]")
-    out.append(END)
-    return "\n".join(out)
+def cells(r):
+    x0, y0, w, h = r
+    return {(x, y) for y in range(y0, y0 + h) for x in range(x0, x0 + w)}
 
 
-def sync_selftest(write):
-    """Сверяет (или переписывает) таблицу в tests/selftest.gd. -> текст ошибки или ""."""
-    src = open(SELFTEST, encoding="utf-8").read()
-    a = src.find(BEGIN)
-    b = src.find(END, a + 1) if a >= 0 else -1
-    if a < 0 or b < 0:
-        return "в tests/selftest.gd нет меток «%s» … «%s»" % (BEGIN, END)
-    b += len(END)
-    want = gd_table()
-    if src[a:b] == want:
-        return ""
-    if not write:
-        return "таблица сердец в tests/selftest.gd не та, что здесь: python3 tools/hearts_model.py --write"
-    with open(SELFTEST, "w", encoding="utf-8", newline="\n") as f:
-        f.write(src[:a] + want + src[b:])
-    print("Таблица сердец в tests/selftest.gd переписана")
-    return ""
-
-
-# --- 2. Модель игрока -----------------------------------------------------------------------------------------
-
-class Level:
-    """Уровень игры n: места чисел битовыми масками, решение, лоток."""
-
-    def __init__(self, n, d):
-        import model as M
-        self.n = n
-        self.d = d
-        cols, rows = d["cols"], d["rows"]
-        self.cols, self.rows = cols, rows
-        blocked = set()
-        for x, y in d["holes"]:
-            blocked.add((x, y))
-        for x, y, w, h in d["pinned"]:
-            blocked |= {(xx, yy) for yy in range(y, y + h) for xx in range(x, x + w)}
-        self.blocked_mask = 0
-        for x, y in blocked:
-            self.blocked_mask |= 1 << (y * cols + x)
-        self.numbers = [(tuple(p), v) for p, v in d["numbers"] if tuple(p) not in blocked]
-        allnum = {tuple(p) for p, _ in d["numbers"]}
-        shapes = {M.key(p) for p in d["pieces"]}
-        self.solution = {tuple(r) for r in d["solution"]}
-        # Все места каждого числа: (маска, ключ формы, rect). Число «?» — любые формы набора.
-        self.cand = []
-        for p, v in self.numbers:
-            dims = set()
-            if v == M.ANY:
-                for a, b in shapes:
-                    dims |= {(a, b), (b, a)}
-            else:
-                dims = {(w, v // w) for w in range(1, v + 1) if v % w == 0}
-            lst = []
-            for w, h in sorted(dims):
-                if w > cols or h > rows:
+def places(d, p, v, occ, pieces):
+    """Места числа v в клетке p, которые игра примет (Board.rect_issue): одно число, площадь (у «?» — любая
+    форма лотка), свободно, цвет (tint_ok), форма есть в лотке pieces (в любом повороте)."""
+    cols, rows = d["cols"], d["rows"]
+    kinds = sorted({M.key(pc) for pc in pieces})
+    allnum = {q for q, _ in d["numbers"]}
+    out = []
+    for (w, h) in M.shapes_for(v, kinds):
+        if w > cols or h > rows:
+            continue
+        for y0 in range(max(0, p[1] - h + 1), min(p[1], rows - h) + 1):
+            for x0 in range(max(0, p[0] - w + 1), min(p[0], cols - w) + 1):
+                r = (x0, y0, w, h)
+                cs = cells(r)
+                if cs & occ or any(q in cs and q != p for q in allnum):
                     continue
-                for y0 in range(max(0, p[1] - h + 1), min(p[1], rows - h) + 1):
-                    for x0 in range(max(0, p[0] - w + 1), min(p[0], cols - w) + 1):
-                        cells = [(xx, yy) for yy in range(y0, y0 + h) for xx in range(x0, x0 + w)]
-                        if any(c in allnum and c != p for c in cells):
-                            continue
-                        if any(c in blocked for c in cells):
-                            continue
-                        if not M.tint_ok(x0, y0, w, h, d["tints"]):
-                            continue
-                        r = (x0, y0, w, h)
-                        lst.append((M.rect_mask(cols, r), M.key((w, h)), r))
-            self.cand.append(lst)
-        self.unknown = [v == M.ANY for _, v in self.numbers]
-        self.pieces = [M.key(p) for p in d["pieces"]]
-        self.pz = _Pz(self)
-        self.memo = {}
-
-    def free_cand(self, occ, k, shapes_left):
-        """Места числа k, свободные при занятых клетках occ; у «?» — только формы из shapes_left."""
-        out = []
-        for m, key, r in self.cand[k]:
-            if m & occ:
-                continue
-            if self.unknown[k] and key not in shapes_left:
-                continue
-            out.append((m, key, r))
-        return out
+                if not M.tint_ok(x0, y0, w, h, d.get("tints") or {}):
+                    continue
+                out.append(r)
+    return out
 
 
-class Attempt:
-    """Попытка уровня: поле (поставленные блоки решения), лоток из трёх гнёзд, очередь."""
-
-    def __init__(self, lv):
-        self.lv = lv
-        self.occ = lv.blocked_mask
-        self.slots = list(lv.pieces[:3]) + [None] * max(0, 3 - len(lv.pieces))
-        self.queue = list(lv.pieces[3:])
-        self.done = [False] * len(lv.numbers)
-        self.placed = []
-
-    def finished(self):
-        return all(self.done)
-
-    def shapes_left(self):
-        return {s for s in self.slots if s is not None} | set(self.queue)
-
-    def legal(self):
-        """Допустимые ходы сейчас: [(k числа, rect, маска, ключ формы)] — блок лотка, место по правилам."""
-        tray = {s for s in self.slots if s is not None}
-        out = []
-        for k, ok in enumerate(self.done):
-            if ok:
-                continue
-            for m, key, r in self.lv.cand[k]:
-                if key in tray and not (m & self.occ):
-                    out.append((k, r, m, key))
-        return out
-
-    def place(self, k, r, m, key):
-        i = self.slots.index(key)
-        self.slots[i] = self.queue.pop(0) if self.queue else None
-        self.occ |= m
-        self.done[k] = True
-        self.placed.append(r)
+def take_piece(pieces, r):
+    k = M.key(r[2:])
+    out = list(pieces)
+    for i, pc in enumerate(out):
+        if M.key(pc) == k:
+            del out[i]
+            return out
+    raise ValueError("нет блока %s" % (r,))
 
 
-PLAYERS = {"guess": 0, "simple": 2, "logic": 4}
+def open_numbers(d, occ):
+    return [(p, v) for p, v in d["numbers"] if p not in occ]
 
 
-class _Pz:
-    """Уровень как головоломка для level_design._State: места чисел (с механиками: препятствия, закреплённый блок,
-    цветные клетки, «?» — уже учтены в Level.cand)."""
-
-    def __init__(self, lv):
-        self.numbers = lv.numbers
-        self.full = (1 << (lv.cols * lv.rows)) - 1
-        self.masks, self.owner, self.rects, self.keys = [], [], [], []
-        self.by_num = [[] for _ in lv.numbers]
-        self.by_cell = [[] for _ in range(lv.cols * lv.rows)]
-        self.index = {}
-        for i, lst in enumerate(lv.cand):
-            for m, key, r in lst:
-                ci = len(self.masks)
-                self.masks.append(m)
-                self.owner.append(i)
-                self.rects.append(r)
-                self.keys.append(key)
-                self.by_num[i].append(ci)
-                self.index[r] = ci
-                mm = m
-                while mm:
-                    bit = mm & -mm
-                    self.by_cell[bit.bit_length() - 1].append(ci)
-                    mm ^= bit
+def visible_reason(d, occ, pieces):
+    """'number' / 'cell' — противоречие видно сразу, None — нет; второе — карта мест чисел."""
+    nums = open_numbers(d, occ)
+    cand = {p: places(d, p, v, occ, pieces) for p, v in nums}
+    if any(not c for c in cand.values()):
+        return "number", cand
+    cover = set()
+    for c in cand.values():
+        for r in c:
+            cover |= cells(r)
+    free = {(x, y) for y in range(d["rows"]) for x in range(d["cols"])} - occ
+    if free - cover:
+        return "cell", cand
+    return None, cand
 
 
-def deduce(lv, at, tried, max_rule):
-    """Что игрок выводит в уме правилами 1..max_rule от поля at, зная свои неверные ходы tried.
-    -> (выведенные места {rect}, живые места {rect}). Кэш по позиции — позиции у попыток повторяются."""
-    import level_design as LD
-    key = (frozenset(at.placed), frozenset(tried), max_rule)
-    hit = lv.memo.get(key)
-    if hit is not None:
-        return hit
-    pz = lv.pz
-    st = LD._State(pz, occ=lv.blocked_mask)
-    for r in at.placed:
-        st.commit(pz.index[r])
-    st.alive.difference_update(pz.index[r] for r in tried if r in pz.index)
-    rules = [r for r in (1, 2, 3, 4) if r <= max_rule]
-    for _ in range(4 * len(pz.numbers) + 8):
-        if st.done() or st.contradiction():
+def classify_dead(d, occ, pieces):
+    """Причина тупика после хода (occ и pieces — уже с ошибочным блоком)."""
+    occ = set(occ)
+    pieces = list(pieces)
+    for k in range(FORCED_MAX + 1):
+        why, cand = visible_reason(d, occ, pieces)
+        if why:
+            return why if k == 0 else "forced:%d" % k
+        forced = [(p, c[0]) for p, c in cand.items() if len(c) == 1]
+        if not forced:
             break
-        if not any(st.apply(rule) for rule in rules):
-            break
-    placed = set(at.placed)
-    known = {pz.rects[ci] for ci in st.alive if pz.owner[ci] in st.assigned} - placed
-    alive = {pz.rects[ci] for ci in st.alive}
-    lv.memo[key] = (known, alive)
-    return known, alive
+        _, r = forced[0]
+        occ |= cells(r)
+        pieces = take_piece(pieces, r)
+    # Места у всех чисел есть и клетки накрываются: не хватает ли блоков нужной формы?
+    need = Counter()
+    for p, c in cand.items():
+        kinds = {M.key(r[2:]) for r in c}
+        if len(kinds) == 1:
+            need[next(iter(kinds))] += 1
+    have = Counter(M.key(pc) for pc in pieces)
+    if any(n > have[k] for k, n in need.items()):
+        return "pieces"
+    return "deep"
 
 
-def play(lv, player, rnd, hearts=DEFAULT_HEARTS):
-    """Одна попытка. -> (ошибок, сердца кончились хоть раз, звёзды без подсказок)."""
-    h = Hearts()
-    h.reset(Hearts.max_for(lv.n, False, False, hearts, DEFAULT_HEARTS_FROM_LEVEL))
-    at = Attempt(lv)
-    tried = set()
-    out_once = False
-    max_rule = PLAYERS[player]
-    guard = 0
-    while not at.finished():
-        guard += 1
-        if guard > 10000:
-            raise RuntimeError("L%d: модель зациклилась" % lv.n)
-        legal = [mv for mv in at.legal() if mv[1] not in tried]
-        moves = legal
-        if max_rule > 0:
-            known, alive = deduce(lv, at, tried, max_rule)
-            sure = [mv for mv in legal if mv[1] in known]
-            if sure:
-                moves = sure
-            else:
-                live = [mv for mv in legal if mv[1] in alive] or legal
-                # догадка — у числа с наименьшим числом живых мест
-                size = {}
-                for rr in alive:
-                    k = lv.pz.owner[lv.pz.index[rr]]
-                    size[k] = size.get(k, 0) + 1
-                best = min(size.get(mv[0], 0) for mv in live)
-                moves = [mv for mv in live if size.get(mv[0], 0) == best]
-        if not moves:
-            raise RuntimeError("L%d: нет допустимого хода, поле %s" % (lv.n, at.placed))
-        k, r, m, key = rnd.choice(moves)
-        if r in lv.solution:
-            at.place(k, r, m, key)
-        else:
-            tried.add(r)
-            h.lose()
-            if h.is_out():
-                out_once = True
-                # окно 20.1b: возрождение за рекламу (возрождения кончились — модель доигрывает с тем же счётом)
-                if not revive_gated(h, False, DEFAULT_REVIVE_MAX, DEFAULT_REVIVE_FREE_ON_FAIL):
-                    h.left = 1
-                    h.revives += 1
-    return h.mistakes, out_once, h.stars(0)
+def level_states(d, level):
+    """Состояния по ходу решения: пусто, затем блоки решения по одному в случайном (по уровню) порядке."""
+    order = list(range(len(d["solution"])))
+    random.Random(level * 7919).shuffle(order)
+    placed = []
+    pieces = list(d["pieces"])
+    states = [(list(placed), list(pieces))]
+    for i in order[:-1]:
+        r = tuple(d["solution"][i])
+        placed.append(r)
+        pieces = take_piece(pieces, r)
+        states.append((list(placed), list(pieces)))
+    return states
 
 
-def first_move_dead_share(lv):
-    at = Attempt(lv)
-    legal = at.legal()
-    return sum(1 for mv in legal if mv[1] not in lv.solution), len(legal)
+def analyze_level(d, level):
+    blocked = blocked_cells(d)
+    reasons = Counter()
+    dead_total = good_total = 0
+    guess = 0.0
+    for placed, pieces in level_states(d, level):
+        occ = set(blocked)
+        for r in placed:
+            occ |= cells(r)
+        dead = good = 0
+        for p, v in open_numbers(d, occ):
+            for r in places(d, p, v, occ, pieces):
+                rest = take_piece(pieces, r)
+                st, _, _ = M.solve(d["cols"], d["rows"], d["numbers"], placed + [r], rest,
+                                   blocked=tuple(blocked), tints=d.get("tints") or None)
+                if st == M.UNSOLVABLE:
+                    dead += 1
+                    reasons[classify_dead(d, occ | cells(r), rest)] += 1
+                elif st == M.SOLVED:
+                    good += 1
+                else:
+                    reasons["limit"] += 1
+        dead_total += dead
+        good_total += good
+        guess += dead / (good + 1)
+    return reasons, dead_total, good_total, guess
 
 
-def load_levels(lo, hi):
-    import make_levels as ML
+def band_of(level):
+    for lo, hi in [(4, 10), (11, 25), (26, 50), (51, 100), (101, 150), (151, 200), (201, 250), (251, 300),
+                   (301, 400), (401, 600), (601, 1000)]:
+        if lo <= level <= hi:
+            return "%d–%d" % (lo, hi)
+    return "?"
+
+
+def analyze(lo, hi):
     pack = ML.read_pack()
-    return [Level(n, ML.pack_level(n, pack)) for n in range(lo, hi + 1)]
-
-
-def run_play(levels, runs, seed):
-    rows = {}
-    t0 = time.time()
-    for lv in levels:
-        if lv.n <= GUARD_LEVELS:
-            continue
-        rnd = random.Random(seed * 100003 + lv.n)
-        dead, legal = first_move_dead_share(lv)
-        res = {"dead": dead, "legal": legal}
-        for player in PLAYERS:
-            mist = outs = stars = with_mist = 0
-            for _ in range(runs):
-                m, o, s = play(lv, player, rnd)
-                mist += m
-                outs += o
-                stars += s
-                with_mist += m > 0
-            res[player] = (mist / runs, with_mist / runs, outs / runs, stars / runs)
-        rows[lv.n] = res
-    return rows, time.time() - t0
-
-
-def summary(rows, runs, elapsed):
-    lines = []
-    lines.append("Сердца: модель игроков (tools/hearts_model.py --play). Уровни игры, 3 сердца, без подсказок,")
-    lines.append("попыток на уровень: %d у каждого игрока (%.0f с)." % (runs, elapsed))
-    lines.append("guess — случайный допустимый ход (неверный на той же позиции не повторяет); logic — вынужденные")
-    lines.append("ходы (одно место у числа, клетка одного места), иначе угадывает у числа с наименьшим числом мест.")
-    lines.append("Ошибка — допустимый ход вне решения (решение одно → решатель: UNSOLVABLE). Уровни 1–3 — страховка.")
+    lines = [
+        "# Тупики уровней %d–%d (tools/hearts_model.py, PLAN 20.2). Не правьте вручную." % (lo, hi),
+        "# Причины: number — у числа нет мест, cell — клетку не накрыть, forced:k — видно после k вынужденных,",
+        "# pieces — не хватает блоков формы, deep — не видно без перебора, limit — решатель не уложился.",
+        "# Цена угадывания — ошибок у игрока, который ставит случайный принимаемый ход (сердец по умолчанию %d)."
+        % DEFAULT_HEARTS,
+        "",
+    ]
+    bands = {}
+    per_level = []
+    total = Counter()
+    for level in range(lo, hi + 1):
+        d = ML.pack_level(level, pack)
+        reasons, dead, good, guess = analyze_level(d, level)
+        b = bands.setdefault(band_of(level), {"levels": 0, "reasons": Counter(), "dead": 0, "good": 0,
+                                                "guess": [], "over": 0})
+        b["levels"] += 1
+        b["reasons"] += reasons
+        b["dead"] += dead
+        b["good"] += good
+        b["guess"].append(guess)
+        b["over"] += guess >= DEFAULT_HEARTS
+        total += reasons
+        per_level.append((level, dead, good, guess, reasons))
+    def fmt_reasons(rs):
+        n = sum(rs.values()) or 1
+        vis = rs["number"] + rs["cell"]
+        forced = sum(v for k, v in rs.items() if k.startswith("forced:"))
+        return "видно сразу %3.0f%% (число %3.0f%%, клетка %3.0f%%) | после вынужденных %3.0f%% | формы %3.0f%% | " \
+               "глубоко %3.0f%% | лимит %d" % (100 * vis / n, 100 * rs["number"] / n, 100 * rs["cell"] / n,
+                                             100 * forced / n, 100 * rs["pieces"] / n, 100 * rs["deep"] / n,
+                                             rs["limit"])
+    lines.append("## По полосам уровней")
+    lines.append("полоса      ур.  тупиковых ходов  цена угадывания (среднее / макс, ур. с ценой ≥ сердец)  причины")
+    for name, b in bands.items():
+        n = b["dead"] + b["good"]
+        g = b["guess"]
+        lines.append("%-10s %4d  %5d из %5d (%2.0f%%)  %4.1f / %4.1f, %3d  %s" % (
+            name, b["levels"], b["dead"], n, 100.0 * b["dead"] / max(1, n), sum(g) / len(g), max(g), b["over"],
+            fmt_reasons(b["reasons"])))
     lines.append("")
-    lines.append("Колонки: тупиковых среди допустимых первых ходов | по игроку: ошибок за попытку / доля попыток")
-    lines.append("с ошибкой / доля, где сердца кончились (нужно возрождение или «Заново») / средние звёзды.")
+    lines.append("## Всего: " + fmt_reasons(total))
+    forced_depth = Counter({k: v for k, v in total.items() if k.startswith("forced:")})
+    if forced_depth:
+        lines.append("   глубина вынужденных: " + ", ".join("%s — %d" % (k.split(":")[1], v)
+                                                        for k, v in sorted(forced_depth.items(),
+                                                                           key=lambda kv: int(kv[0].split(":")[1]))))
     lines.append("")
-    lines.append("  участок     тупик 1-го |  guess: ошиб  с ош.  кончились  звёзды |  logic: ошиб  с ош.  кончились  звёзды")
-
-    def fmt(ns, label):
-        ns = [n for n in ns if n in rows]
-        if not ns:
-            return None
-        dead = sum(rows[n]["dead"] for n in ns) / max(1, sum(rows[n]["legal"] for n in ns))
-        cols = []
-        for p in ("guess", "logic"):
-            vals = [rows[n][p] for n in ns]
-            avg = [sum(v[i] for v in vals) / len(vals) for i in range(4)]
-            cols.append("%11.2f  %4.0f%%  %8.0f%%  %6.2f" % (avg[0], 100 * avg[1], 100 * avg[2], avg[3]))
-        return "  %-10s  %9.0f%% | %s | %s" % (label, 100 * dead, cols[0], cols[1])
-
-    for lo, hi in RANGES:
-        s = fmt(range(lo, hi + 1), "%d–%d" % (lo, hi))
-        if s:
-            lines.append(s)
-    s = fmt(sorted(rows), "все")
-    if s:
-        lines.append(s)
-    # Самые «дорогие» для думающего игрока уровни — где сердца кончаются чаще (PLAN 20.1, риск: пробы после 100-го).
-    top = sorted(rows, key=lambda n: (-rows[n]["logic"][2], -rows[n]["logic"][0]))[:15]
-    top = [n for n in top if rows[n]["logic"][2] > 0]
-    lines.append("")
-    if top:
-        lines.append("У logic чаще всего кончаются сердца (уровень: доля попыток, ошибок за попытку):")
-        lines.append("  " + ", ".join("%d: %.0f%% / %.1f" % (n, 100 * rows[n]["logic"][2], rows[n]["logic"][0])
-                                       for n in top))
-    else:
-        lines.append("У logic сердца не кончаются ни на одном уровне.")
-    return "\n".join(lines)
-
-
-def run_verify(levels, rnd, positions=3):
-    """Каждый допустимый ход на positions случайных позициях уровня: вне решения — UNSOLVABLE, в решении — SOLVED."""
-    import model as M
-    import make_lab as LABF
-    errs = []
-    checked = 0
-    for lv in levels:
-        if lv.n <= GUARD_LEVELS:
-            continue
-        d = lv.d
-        blocked = LABF.blocked_of(d)
-        for _ in range(positions):
-            at = Attempt(lv)
-            for _s in range(rnd.randint(0, max(0, len(lv.pieces) - 1))):
-                legal = [mv for mv in at.legal() if mv[1] in lv.solution]
-                if not legal:
-                    break
-                at.place(*rnd.choice(legal))
-            pieces_left = [s for s in at.slots if s is not None] + list(at.queue)
-            for k, r, m, key in at.legal():
-                rest = list(pieces_left)
-                rest.remove(key)
-                st, _, _ = M.solve(d["cols"], d["rows"], d["numbers"], at.placed + [r], rest, LABF.STEP_LIMIT,
-                                   blocked, d["tints"])
-                checked += 1
-                want = M.SOLVED if r in lv.solution else M.UNSOLVABLE
-                if st != want:
-                    errs.append("L%d: ход %s после %s — решатель %d, ждали %d" % (lv.n, r, at.placed, st, want))
-    return errs, checked
-
-
-def parse_levels(s):
-    a, _, b = s.partition("-")
-    lo = int(a)
-    hi = int(b) if b else lo
-    return max(1, lo), min(GAME_LEVELS, hi)
+    lines.append("## Уровни с самой высокой ценой угадывания")
+    for level, dead, good, guess, reasons in sorted(per_level, key=lambda t: -t[3])[:15]:
+        lines.append("L%04d  тупиковых %3d, верных %3d, цена %.1f  глубоких %d" % (level, dead, good, guess,
+                                                                                  reasons["deep"]))
+    return lines
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--write", action="store_true", help="переписать таблицу сердец в tests/selftest.gd")
-    ap.add_argument("--play", action="store_true", help="модель игроков")
-    ap.add_argument("--verify", action="store_true", help="сверить «ошибка = ход вне решения» с решателем")
-    ap.add_argument("--levels", default="4-1000", help="уровни, например 4-200")
-    ap.add_argument("--runs", type=int, default=60, help="попыток на уровень у каждого игрока")
-    ap.add_argument("--seed", type=int, default=20)
-    ap.add_argument("--report", action="store_true", help="записать итог --play в tools/hearts_report.txt")
-    args = ap.parse_args()
-
-    errs = check_rules()
-    for e in errs:
-        print("ПРАВИЛА:", e)
-    print("Правила сердец: %d + %d случаев, расхождений %d" % (len(MAX_FOR_CASES), len(CASES), len(errs)))
-    msg = sync_selftest(args.write)
-    if msg:
-        print("SELFTEST:", msg)
-        errs.append(msg)
-    else:
-        print("Таблица в tests/selftest.gd совпадает")
-
-    if args.verify or args.play:
-        lo, hi = parse_levels(args.levels)
-        levels = load_levels(lo, hi)
-    if args.verify:
-        verrs, checked = run_verify(levels, random.Random(args.seed))
-        for e in verrs[:20]:
-            print("VERIFY:", e)
-        print("Сверка с решателем: ходов %d, расхождений %d" % (checked, len(verrs)))
-        errs += verrs
-    if args.play:
-        rows, elapsed = run_play(levels, args.runs, args.seed)
-        text = summary(rows, args.runs, elapsed)
-        print()
-        print(text)
-        if args.report:
-            with open(REPORT, "w", encoding="utf-8", newline="\n") as f:
-                f.write(text + "\n")
-            print("\nЗаписано:", REPORT)
-    return 1 if errs else 0
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--rules", action="store_true", help="только правила")
+    ap.add_argument("--from", dest="lo", type=int, default=DEFAULT_HEARTS_FROM_LEVEL)
+    ap.add_argument("--to", dest="hi", type=int, default=200)
+    a = ap.parse_args()
+    ok = check_rules()
+    if a.rules:
+        sys.exit(0 if ok else 1)
+    lines = analyze(a.lo, a.hi)
+    with open(REPORT, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    print("\n".join(lines[5:20]))
+    print("записано:", REPORT)
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

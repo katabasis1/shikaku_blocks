@@ -22,8 +22,6 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ui/settings_panel.tscn" id="11_settings_panel"]
 
-[ext_resource type="PackedScene" path="res://scenes/ui/hearts_out_panel.tscn" id="31_hearts_out"]
-
 [ext_resource type="PackedScene" path="res://scenes/ui/tutorial_hand.tscn" id="12_tutorial_hand"]
 
 [ext_resource type="Script" path="res://scenes/game/juice.gd" id="30_juice"]
@@ -49,6 +47,8 @@
 [ext_resource type="Script" path="res://scripts/pill_label.gd" id="22_pill"]
 
 [ext_resource type="Script" path="res://scenes/game/win_backdrop.gd" id="23_backdrop"]
+
+[ext_resource type="PackedScene" path="res://scenes/ui/hearts_panel.tscn" id="40_hearts_panel"]
 
 [node name="Game" type="Control"]
 layout_mode = 3
@@ -399,12 +399,12 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 1
 
-[node name="HeartsOutPanel" parent="." instance=ExtResource("31_hearts_out")]
+[node name="PausePanel" parent="." instance=ExtResource("11_settings_panel")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
 
-[node name="PausePanel" parent="." instance=ExtResource("11_settings_panel")]
+[node name="HeartsPanel" parent="." instance=ExtResource("40_hearts_panel")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

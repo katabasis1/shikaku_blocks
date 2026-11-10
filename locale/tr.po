@@ -22,25 +22,28 @@ msgid "Невероятно!"
 msgstr "İnanılmaz!"
 
 msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
-msgstr "CANIN KALMADI"
+msgstr "KALPLER BİTTİ"
 
-msgid "+1 сердце"
-msgstr "+1 can"
+msgid "Продолжи с этого места или начни уровень заново"
+msgstr "Buradan devam et ya da seviyeye baştan başla"
 
-msgid "Посмотри рекламу — и продолжай с того же места"
-msgstr "Reklam izle, kaldığın yerden devam et"
+msgid "Начни уровень заново — ты уже знаешь, где ловушка"
+msgstr "Seviyeye baştan başla — artık tuzağın yerini biliyorsun"
 
-msgid "Продолжай с того же места"
-msgstr "Kaldığın yerden devam et"
-
-msgid "Начни уровень заново"
-msgstr "Bölüme baştan başla"
+msgid "+1 СЕРДЦЕ"
+msgstr "+1 KALP"
 
 msgid "ЗАНОВО"
 msgstr "YENİDEN"
 
-msgid "Реклама не загрузилась"
-msgstr "Reklam yüklenemedi"
+msgid "Начать заново"
+msgstr "Baştan başla"
+
+msgid "Сердце дают, если досмотреть рекламу до конца"
+msgstr "Kalp için reklamı sonuna kadar izle"
+
+msgid "Реклама не загрузилась — попробуй ещё раз"
+msgstr "Reklam yüklenmedi — tekrar dene"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "İpucu için reklamı izle"

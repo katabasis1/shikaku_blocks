@@ -186,50 +186,6 @@ const LOGIC_MODES: Array[String] = ["обычный", "«Меньше движе
 const MAX_REPORTS := 5  # сколько однотипных ошибок печатать подробно
 const PACK_MAX_AREA := 12  # пределы заготовленных уровней (tools/make_levels.py: spec)
 const PACK_MAX_SIDE := 5
-# hearts_model: begin (создано tools/hearts_model.py --write — не правьте вручную)
-## Hearts.max_for: [уровень, задача дня, «Лаборатория», флаг hearts, флаг hearts_from_level, ждём].
-const HEARTS_MAX_FOR_CASES := [
-	[1, false, false, 3, 4, 0],
-	[3, false, false, 3, 4, 0],
-	[4, false, false, 3, 4, 3],
-	[250, false, false, 3, 4, 3],
-	[2, true, false, 3, 4, 3],
-	[20, false, true, 3, 4, 0],
-	[20, false, false, 0, 4, 0],
-	[2, true, false, 0, 4, 0],
-	[9, false, false, 5, 10, 0],
-	[10, false, false, 5, 10, 5],
-	[1, false, false, 1, 1, 1],
-]
-## Попытка: [сердец, шаги (L — ошибка, R — возрождение, F — бесплатное), подсказок, revive_max,
-## revive_free_on_fail, ждём: осталось, ошибок, возрождений, кончились, можно возродиться,
-## бесплатное было, звёзды].
-const HEARTS_CASES := [
-	[3, "", 0, 3, true, 3, 0, 0, false, false, false, 3],
-	[3, "L", 0, 3, true, 2, 1, 0, false, false, false, 2],
-	[3, "LL", 0, 3, true, 1, 2, 0, false, false, false, 1],
-	[3, "", 1, 3, true, 3, 0, 0, false, false, false, 2],
-	[3, "L", 1, 3, true, 2, 1, 0, false, false, false, 1],
-	[3, "", 5, 3, true, 3, 0, 0, false, false, false, 1],
-	[3, "R", 0, 3, true, 3, 0, 0, false, false, false, 3],
-	[3, "LLL", 0, 3, true, 0, 3, 0, true, true, false, 1],
-	[3, "LLLR", 0, 3, true, 1, 3, 1, false, false, false, 1],
-	[3, "LLLRL", 0, 3, true, 0, 4, 1, true, true, false, 1],
-	[3, "LLLRLRLRL", 0, 3, true, 0, 6, 3, true, false, false, 1],
-	[3, "LLLR", 0, 0, true, 0, 3, 0, true, false, false, 1],
-	[3, "LLLF", 0, 3, true, 1, 3, 1, false, false, true, 1],
-	[3, "LLLFLF", 0, 3, true, 0, 4, 1, true, true, true, 1],
-	[3, "LLLFLR", 0, 3, true, 1, 4, 2, false, false, true, 1],
-	[3, "LLLF", 0, 3, false, 0, 3, 0, true, true, false, 1],
-	[1, "L", 0, 3, true, 0, 1, 0, true, true, false, 2],
-	[5, "LL", 0, 3, true, 3, 2, 0, false, false, false, 1],
-	[0, "", 0, 3, true, 0, 0, 0, false, false, false, 3],
-	[0, "L", 0, 3, true, 0, 1, 0, false, false, false, 2],
-	[0, "LLLL", 0, 3, true, 0, 4, 0, false, false, false, 1],
-	[0, "LLLR", 0, 3, true, 0, 3, 0, false, false, false, 1],
-	[-2, "", 0, 3, true, 0, 0, 0, false, false, false, 3],
-]
-# hearts_model: end
 
 var _fails: int = 0
 var _checks: int = 0
@@ -270,7 +226,7 @@ func _run() -> void:
 	_test_epoch()
 	_test_leaderboard_sent()
 	_test_yandex_features()
-	_test_hearts()
+	_test_hearts_rules()
 	_test_tutorial_save()
 	_test_settings()
 	await _test_settings_panel()
@@ -283,6 +239,7 @@ func _run() -> void:
 	await _test_leaders()
 	await _test_daily_game()
 	await _test_analytics()
+	await _test_hearts_window()
 	await _test_lab()
 	await _test_background()
 	_test_layout()
@@ -1363,6 +1320,78 @@ func _test_yandex_features() -> void:
 	print("  флаги: строки, мусор и пределы, по умолчанию — одни для JS и игры; отзыв: только 11–15, одна просьба за "
 			+ "сессию, гость и сбой не запоминаются, показ и «уже оценил» — да; «Оценить игру»: вошедшему по canReview, "
 			+ "гостю — вход, затем оценка; старый флаг tutorial_variant не мешает")
+
+
+## Правила сердец (20.1a, scripts/hearts.gd) — те же таблицы, что MAX_FOR_CASES и SCENARIOS в tools/hearts_model.py
+## (`python3 tools/hearts_model.py --rules` сверяет обе копии правил и что таблицы здесь не разошлись с Python).
+## Сердец на попытку: [уровень, задача дня, «Лаборатория», флаг hearts, флаг hearts_from_level, ждём].
+const HEARTS_MAX_FOR_CASES := [
+	[1, false, false, 3, 4, 0],
+	[3, false, false, 3, 4, 0],
+	[4, false, false, 3, 4, 3],
+	[250, false, false, 3, 4, 3],
+	[1, true, false, 3, 4, 3],
+	[50, false, true, 3, 4, 0],
+	[50, false, false, 0, 4, 0],
+	[50, true, false, 0, 4, 0],
+	[9, false, false, 5, 10, 0],
+	[10, false, false, 5, 10, 5],
+]
+## Попытка: [имя, сердец, ходы (L — ошибка, R — возрождение за рекламу, F — бесплатное продолжение), подсказок,
+## revive_max, revive_free_on_fail, [осталось, ошибок, возрождений, кончились, можно возродиться, можно бесплатно,
+## звёзд]].
+const HEARTS_SCENARIOS := [
+	["без ошибок", 3, "", 0, 3, true, [3, 0, 0, false, false, true, 3]],
+	["одна ошибка", 3, "L", 0, 3, true, [2, 1, 0, false, false, true, 2]],
+	["ошибка и подсказка", 3, "L", 1, 3, true, [2, 1, 0, false, false, true, 1]],
+	["две ошибки", 3, "LL", 0, 3, true, [1, 2, 0, false, false, true, 1]],
+	["три подсказки — не ниже 1", 3, "", 3, 3, true, [3, 0, 0, false, false, true, 1]],
+	["сердца кончились", 3, "LLL", 0, 3, true, [0, 3, 0, true, true, true, 1]],
+	["ошибка при нуле — не ниже 0", 3, "LLLL", 0, 3, true, [0, 4, 0, true, true, true, 1]],
+	["возрождение за рекламу", 3, "LLLR", 0, 3, true, [1, 3, 1, false, false, true, 1]],
+	["бесплатное продолжение", 3, "LLLF", 0, 3, true, [1, 3, 1, false, false, false, 1]],
+	["второе бесплатное нельзя", 3, "LLLFL", 0, 3, true, [0, 4, 1, true, true, false, 1]],
+	["бесплатное выключено флагом", 3, "LLL", 0, 3, false, [0, 3, 0, true, true, false, 1]],
+	["возрождения исчерпаны", 3, "LLLRLRLRL", 0, 3, true, [0, 6, 3, true, false, true, 1]],
+	["возрождений 0 (флаг)", 3, "LLL", 0, 0, true, [0, 3, 0, true, false, true, 1]],
+	["пять сердец, две ошибки", 5, "LL", 0, 3, true, [3, 2, 0, false, false, true, 1]],
+	["одно сердце", 1, "L", 0, 3, true, [0, 1, 0, true, true, true, 2]],
+	["без предела: ошибки считаются", 0, "LL", 0, 3, true, [0, 2, 0, false, false, true, 1]],
+	["без предела: одна ошибка", 0, "L", 0, 3, true, [0, 1, 0, false, false, true, 2]],
+]
+
+
+## Сердца без сцены (20.1a): сколько на попытку (обучение, задача дня, «Лаборатория», флаги) и попытка по шагам —
+## ошибки, возрождения за рекламу и бесплатное, звёзды. Возрождение вне правил (can_revive / can_continue_free —
+## false) — тоже ошибка таблицы.
+func _test_hearts_rules() -> void:
+	_section("Сердца: правила (20.1a)")
+	for c: Array in HEARTS_MAX_FOR_CASES:
+		var got_max: int = Hearts.max_for(c[0], c[1], c[2], c[3], c[4])
+		_check(got_max == c[5], "Hearts.max_for(%s) = %d, ждали %d" % [str(c.slice(0, 5)), got_max, c[5]])
+	for sc: Array in HEARTS_SCENARIOS:
+		var h := Hearts.new()
+		h.reset(sc[1])
+		var ops: String = sc[2]
+		var revive_max: int = sc[4]
+		var allow_free: bool = sc[5]
+		var legal := true
+		for k in ops.length():
+			var op := ops[k]
+			if op == "L":
+				h.lose()
+			elif op == "R":
+				legal = legal and h.can_revive(revive_max)
+				h.revive(false)
+			elif op == "F":
+				legal = legal and h.can_revive(revive_max) and h.can_continue_free(allow_free)
+				h.revive(true)
+		var got: Array = [h.left, h.mistakes, h.revives, h.is_out(), h.can_revive(revive_max),
+				h.can_continue_free(allow_free), h.stars(sc[3])]
+		_check(legal and got == sc[6], "сердца «%s»: %s, ждали %s%s" % [sc[0], str(got), str(sc[6]),
+				"" if legal else " (возрождение вне правил)"])
+	print("  сердца: %d случаев max_for и %d попыток — как в tools/hearts_model.py" % [HEARTS_MAX_FOR_CASES.size(),
+			HEARTS_SCENARIOS.size()])
 
 
 ## Навыки обучения в сохранении (v5): биты переживают JSON и файл, облако
@@ -3054,7 +3083,6 @@ func _test_game() -> void:
 	await _test_quality(game)
 	_test_effects_off(game)
 	await _test_effects_logic(game)
-	await _test_hearts_game(game)
 	await _test_board_rows()
 	GameState.reset_progress()
 
@@ -5208,112 +5236,6 @@ func _test_tutorial(game: Game) -> void:
 
 ## Ход игрока перетаскиванием: блок из слота отпущен на r (сигнал DragController.dropped → Game._on_dropped):
 ## тупиковый — ошибка (20.1a), остальные — commit_place.
-## Сердца (20.1a): правила Hearts по таблицам HEARTS_MAX_FOR_CASES и HEARTS_CASES (их создаёт tools/hearts_model.py —
-## Python-копия правил прогоняет те же случаи). Шаги как в Game: L — ошибка (Hearts.lose), R / F — возрождение за
-## рекламу / бесплатное через те же проверки, что Game.revive (can_revive, can_continue_free).
-func _test_hearts() -> void:
-	_section("Сердца: правила (20.1a, сверка с tools/hearts_model.py)")
-	for c: Array in HEARTS_MAX_FOR_CASES:
-		var got := Hearts.max_for(int(c[0]), bool(c[1]), bool(c[2]), int(c[3]), int(c[4]))
-		_check(got == int(c[5]), "Hearts.max_for%s = %d, ждали %d" % [str(c.slice(0, 5)), got, int(c[5])])
-	var bad := 0
-	for c: Array in HEARTS_CASES:
-		var h := Hearts.new()
-		h.reset(int(c[0]))
-		var ops := str(c[1])
-		var revive_max := int(c[3])
-		var free_allow := bool(c[4])
-		for op in ops:
-			if op == "L":
-				h.lose()
-			elif h.can_revive(revive_max) and (op == "R" or h.can_continue_free(free_allow)):
-				h.revive(op == "F")
-		var got := [h.left, h.mistakes, h.revives, h.is_out(), h.can_revive(revive_max), h.free_used,
-				h.stars(int(c[2]))]
-		if not _check(got == c.slice(5), "Hearts %s: %s, ждали %s" % [str(c.slice(0, 5)), str(got), str(c.slice(5))]):
-			bad += 1
-	# Три сердца, без подсказок и возрождений: звёзды = оставшиеся сердца (PLAN 20.1).
-	var h3 := Hearts.new()
-	h3.reset(3)
-	for k in 3:
-		_check(h3.stars(0) == h3.left, "3 сердца, ошибок %d: звёзд %d, сердец %d" % [k, h3.stars(0), h3.left])
-		h3.lose()
-	print("  правила сердец: %d + %d случаев, расхождений %d" % [HEARTS_MAX_FOR_CASES.size(), HEARTS_CASES.size(), bad])
-
-
-## Сердца в игре (20.1a), флаги по умолчанию: уровни до hearts_from_level — без сердец (полоса пуста), дальше — три;
-## задача дня — с сердцами всегда, «Лаборатория» — без них. Три ошибки — сердца кончились: блок не поднять,
-## подсказка не ставит блок, «Подсказка» выключена, ходов нет; Game.revive — +1 сердце, поле как было (второй раз
-## подряд — нельзя: сердца не кончились), пройденный после возрождения уровень — 1 звезда. «Заново» — сердца снова
-## полные. Окно «Продолжить / Заново» (20.1b) здесь не проверяем.
-func _test_hearts_game(game: Game) -> void:
-	_section("Сердца в игре (20.1a)")
-	GameState.reset_progress()
-	_check(YSDK.hearts() == YSDK.DEFAULT_HEARTS and YSDK.hearts_from_level() == YSDK.DEFAULT_HEARTS_FROM_LEVEL,
-			"флаги сердец не по умолчанию: %d / %d" % [YSDK.hearts(), YSDK.hearts_from_level()])
-	for n: int in [1, Tutorial.GUARD_LEVELS, YSDK.hearts_from_level(), LOGIC_LEVEL]:
-		game.start_level(n)
-		await _frames(1)
-		var want := 0 if n < YSDK.hearts_from_level() else YSDK.hearts()
-		_check(game.hearts.max_hearts == want and game.hearts.left == want and game.hearts_bar.max_hearts == want
-				and game.hearts_bar.left == want, "L%d: сердец %d из %d, на полосе %d из %d (ждали %d)" % [n,
-				game.hearts.left, game.hearts.max_hearts, game.hearts_bar.left, game.hearts_bar.max_hearts, want])
-	game.start_level(2, true)
-	await _frames(1)
-	_check(game.hearts.max_hearts == YSDK.hearts(), "задача дня: сердец %d (ждали %d)" % [game.hearts.max_hearts,
-			YSDK.hearts()])
-	game.start_lab(LabLevels.mechanics()[0], 1)
-	await _frames(1)
-	_check(game.hearts.max_hearts == 0 and not game.hearts.is_limited(), "«Лаборатория»: сердец %d (ждали 0)" %
-			game.hearts.max_hearts)
-
-	# Три ошибки подряд на уровне с сердцами.
-	game.start_level(LOGIC_LEVEL)
-	await _frames(1)
-	for k in YSDK.hearts():
-		var mv := _find_dead_end_move(game)
-		if not _check(not mv.is_empty(), "L%d: тупикового хода нет (ошибка %d)" % [LOGIC_LEVEL, k + 1]):
-			return
-		_drop(game, int(mv[0]), mv[1])
-		_check(game.has_mistake() and game.hearts.left == YSDK.hearts() - 1 - k and game.moves.is_empty(),
-				"ошибка %d: сердец %d, ходов %d" % [k + 1, game.hearts.left, game.moves.size()])
-		game.flush_mistake()
-	var in_tray := game.tray.blocks.filter(func(b: Variant) -> bool: return b != null).size()
-	_check(game.hearts.is_out() and not game.can_play() and game.hint_button.disabled and not game.has_mistake()
-			and game.hearts_bar.left == 0 and in_tray == mini(3, (game.level_data.pieces as Array).size()),
-			"сердца кончились: кончились %s, ходить можно %s, «Подсказка» выключена %s, на полосе %d, в лотке %d" % [
-			game.hearts.is_out(), game.can_play(), game.hint_button.disabled, game.hearts_bar.left, in_tray])
-	game.hints.give()
-	_check(game.moves.is_empty() and game.hints.used == 0, "сердца кончились, а подсказка поставила блок (ходов %d)"
-			% game.moves.size())
-	var press := InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = true
-	var slot := game.tray.blocks.find(game.tray.blocks.filter(func(b: Variant) -> bool: return b != null)[0])
-	game.drag._on_slot_input(press, slot)
-	_check(not game.drag.is_busy() and game.drag._press_slot == -1, "сердца кончились, а блок из гнезда %d поднялся"
-			% slot)
-	# Возрождение: +1 сердце, ходить снова можно; второй раз подряд — нельзя (сердца не кончились).
-	_check(game.revive() and game.hearts.left == 1 and game.can_play() and not game.hint_button.disabled
-			and game.hearts_bar.left == 1, "возрождение: сердец %d, ходить можно %s" % [game.hearts.left, game.can_play()])
-	_check(not game.revive(), "возрождение второй раз подряд сработало (сердец %d)" % game.hearts.left)
-	if _solve_with_hints(game, LOGIC_LEVEL):
-		_check(GameState.get_stars(LOGIC_LEVEL) == 1, "после возрождения звёзд %d (ждали 1)" %
-				GameState.get_stars(LOGIC_LEVEL))
-	# «Заново» после ошибки — сердца снова полные, ошибок нет.
-	game.start_level(LOGIC_LEVEL)
-	await _frames(1)
-	var mv2 := _find_dead_end_move(game)
-	if _check(not mv2.is_empty(), "L%d: тупикового хода нет (перед «Заново»)" % LOGIC_LEVEL):
-		_drop(game, int(mv2[0]), mv2[1])
-		game._on_restart_pressed()
-		await _frames(1)
-		_check(game.hearts.left == YSDK.hearts() and game.hearts.mistakes == 0 and game.hearts.revives == 0
-				and not game.has_mistake(), "«Заново»: сердец %d, ошибок %d, возрождений %d" % [game.hearts.left,
-				game.hearts.mistakes, game.hearts.revives])
-	GameState.reset_progress()
-
-
 func _drop(game: Game, slot: int, r: Rect2i) -> void:
 	var b: Block = game.tray.blocks[slot]
 	if b.cells != r.size:
@@ -5617,7 +5539,7 @@ func _test_analytics() -> void:
 	var key := Analytics.level_key(LOGIC_LEVEL)
 	var total := (game.level_data.pieces as Array).size()
 	var exit1: Dictionary = _goal_params("level_exit").get("level_exit", {}).get("L0001", {})
-	_check(_is_span(exit1.get("time")) and exit1.get("undo", -1) == 0 and exit1.get("hint", -1) == 0
+	_check(_is_span(exit1.get("time")) and exit1.get("hearts") == "off" and exit1.get("hint", -1) == 0
 			and exit1.get("dead", -1) == 0 and exit1.get("placed", "") == "0/%d" % total1 and exit1.size() == 5
 			and Analytics.run_key == key,
 			"смена уровня не закрыла попытку уровня 1 выходом: %s, открыта «%s»" % [str(Analytics.last("level_exit")),
@@ -5633,8 +5555,8 @@ func _test_analytics() -> void:
 		_drop(game, m.slot, m.rect)
 	_check(Analytics.count("first_move") == 1 and _is_span(_goal_params("first_move").get("first_move", {}).get(key)),
 			"первый ход: целей %d, последняя %s" % [Analytics.count("first_move"), str(Analytics.last("first_move"))])
-	# Ошибка (тупиковый ход, 20.1a) — dead_end по разу за попытку, сколько всего — в итоге. Блок сам возвращается
-	# в лоток (flush_mistake — не ждать таймер), отмены у игрока нет: цель undo не шлётся (цели сердец — 20.1e).
+	# Ошибка (20.1a: тупиковый ход — сердце сгорает, блок сам в гнездо) — dead_end по разу за попытку, сколько
+	# всего — в итоге. «Отмены» нет: цель undo не шлётся, в итоге undo 0 (параметр заменит hearts — 20.1e).
 	for _k in 2:
 		var mv := _find_dead_end_move(game)
 		if not _check(not mv.is_empty(), "уровень %d: нет тупикового хода" % LOGIC_LEVEL):
@@ -5644,8 +5566,8 @@ func _test_analytics() -> void:
 		await _frames(1)
 	_check(Analytics.count("dead_end") == 1 and _goal_params("dead_end") == {"dead_end": {key: 1}}
 			and Analytics.count("undo") == 0 and game.hearts.mistakes == 2 and game.can_play(),
-			"две ошибки: целей dead_end %d (ждали 1), undo %d (ждали 0), ошибок %d, ходить можно: %s" % [
-			Analytics.count("dead_end"), Analytics.count("undo"), game.hearts.mistakes, game.can_play()])
+			"две ошибки: целей dead_end %d (ждали одну), undo %d (ждали 0), ошибок %d, можно ходить %s" % [
+			Analytics.count("dead_end"), Analytics.count("undo"), game.hearts.mistakes, str(game.can_play())])
 	# Подсказка: каждая, бесплатная и за рекламу.
 	game.hints.give()
 	_check(Analytics.count("hint") == 1 and _goal_params("hint") == {"hint": {key: "free"}},
@@ -5661,7 +5583,7 @@ func _test_analytics() -> void:
 	var placed: int = game.moves.size()
 	game._on_restart_pressed()
 	await _frames(1)
-	var want := {"undo": 0, "hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total]}  # отмены нет (20.1a)
+	var want := {"hearts": 1, "hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total]}  # 3 сердца − 2 ошибки
 	var got_restart: Dictionary = _goal_params("level_restart").get("level_restart", {}).get(key, {}).duplicate()
 	var restart_time: Variant = got_restart.get("time")
 	got_restart.erase("time")
@@ -5675,7 +5597,7 @@ func _test_analytics() -> void:
 		var info: Dictionary = _goal_params("level_win").get("level_win", {}).get(key, {})
 		var stars := GameState.get_stars(LOGIC_LEVEL)
 		_check(info.get("stars", -1) == stars and info.get("hint", -1) == game.hints.used
-				and info.get("undo", -1) == 0 and info.get("dead", -1) == 0 and _is_span(info.get("time"))
+				and info.get("hearts", -1) == 3 and info.get("dead", -1) == 0 and _is_span(info.get("time"))
 				and info.size() == 5 and Analytics.run_key.is_empty(),
 				"победа: %s (звёзд %d, подсказок %d), попытка «%s»" % [str(info), stars, game.hints.used, Analytics.run_key])
 		_check(Analytics.count("first_move") == 1, "подсказки посчитались первым ходом")
@@ -5779,6 +5701,130 @@ func _test_analytics() -> void:
 	Analytics.journal.clear()
 	print("  интервалы, журнал; уровень: начало, первый ход, тупик и отмена по разу, подсказки, «Заново», победа, "
 			+ "переигровка, выход; задача дня; «Лаборатория» не считается; навык; реклама и отзыв")
+
+
+## Окно «Сердца закончились» (20.1b): три ошибки — окно и цели heart_lost / hearts_out; рекламы нет — бесплатное
+## продолжение один раз, потом только «ЗАНОВО»; реклама есть — досмотрел (+1), закрыл (окно остаётся с пояснением),
+## не показалась (бесплатно, если ещё не было; иначе окно остаётся); «Заново» из окна — новая попытка с тремя
+## сердцами. Реклама не вызывается: итог подставляется в _on_revive_ad, как у подсказки (_on_ad_finished).
+func _test_hearts_window() -> void:
+	_section("Сердца: окно «Сердца закончились» (20.1b)")
+	GameState.reset_progress()
+	Analytics.journal.clear()
+	var saved := [YSDK.is_available, YSDK.last_ad_result, YSDK._revive_max, YSDK._revive_free_on_fail, YSDK._bridge]
+	YSDK._bridge = FakeBridge.new()  # «реклама есть» — GameplayAPI идёт в подделку моста, не в null
+	YSDK.is_available = false
+	YSDK._revive_max = YSDK.DEFAULT_REVIVE_MAX
+	YSDK._revive_free_on_fail = true
+	var game := (load(GAME_SCENE) as PackedScene).instantiate() as Game
+	add_child(game)
+	await _frames(3)
+	game.start_level(LOGIC_LEVEL)
+	await _frames(1)
+	var key := Analytics.level_key(LOGIC_LEVEL)
+	var panel: HeartsPanel = game.hearts_panel
+	_check(game.hearts.max_hearts == 3 and not panel.visible, "уровень %d: сердец %d, окно видно %s" % [LOGIC_LEVEL,
+			game.hearts.max_hearts, str(panel.visible)])
+	if not await _burn_hearts(game, 3):
+		game.queue_free()
+		await _frames(2)
+		return
+	_check(Analytics.count("heart_lost") == 3 and _goal_params("heart_lost") == {"heart_lost": {key: 0}},
+			"heart_lost: целей %d (ждали 3), последняя %s" % [Analytics.count("heart_lost"),
+			str(Analytics.last("heart_lost"))])
+	_check(panel.visible and panel.offer == HeartsPanel.Offer.FREE and panel.revive_button.visible
+			and not panel.ad_badge.visible and Analytics.count("hearts_out") == 1 and not game.can_play()
+			and game.hint_button.disabled,
+			"сердца кончились без рекламы: окно %s, предложение %d (ждали FREE), hearts_out %d, можно ходить %s" % [
+			str(panel.visible), panel.offer, Analytics.count("hearts_out"), str(game.can_play())])
+	game._on_pause_pressed()
+	_check(not game.paused, "пауза открылась под окном «Сердца закончились»")
+	# Бесплатное продолжение (рекламы нет): +1 сердце, окно закрыто, звёзд за уровень — 1.
+	panel.revive_button.pressed.emit()
+	_check(not panel.visible and game.hearts.left == 1 and game.hearts.revives == 1 and game.hearts.free_used
+			and game.can_play() and game.hearts.stars(0) == 1 and _goal_params("revive") == {"revive": {key: "free"}},
+			"бесплатное продолжение: окно %s, сердец %d, %s" % [str(panel.visible), game.hearts.left,
+			str(Analytics.last("revive"))])
+	# Второй раз бесплатно нельзя, рекламы нет — только «ЗАНОВО» (главная, зелёная).
+	await _burn_hearts(game, 1)
+	_check(panel.visible and panel.offer == HeartsPanel.Offer.NONE and not panel.revive_button.visible
+			and panel.restart_button.tone == PillButton.Tone.GREEN and panel.restart_button.text == tr("ЗАНОВО"),
+			"второй раз без рекламы: предложение %d (ждали NONE), «ПРОДОЛЖИТЬ» видно %s, «%s»" % [panel.offer,
+			str(panel.revive_button.visible), panel.restart_button.text])
+	# Реклама есть: «ПРОДОЛЖИТЬ» со значком; досмотрел — +1; закрыл до награды — окно остаётся с пояснением.
+	YSDK.is_available = true
+	panel.open(game.revive_offer())
+	_check(panel.offer == HeartsPanel.Offer.AD and panel.ad_badge.visible and panel.restart_button.text == tr("Начать заново"),
+			"реклама есть: предложение %d (ждали AD), значок %s" % [panel.offer, str(panel.ad_badge.visible)])
+	game.revive_pending = true
+	panel.set_waiting(true)
+	YSDK.last_ad_result = "closed"
+	game._on_revive_ad(false, game.session)
+	_check(panel.visible and panel.note_label.visible and not panel.revive_button.disabled and game.hearts.is_out()
+			and _goal_params("revive") == {"revive": {key: "closed"}},
+			"закрыл рекламу до награды: окно %s, пояснение %s, %s" % [str(panel.visible), str(panel.note_label.visible),
+			str(Analytics.last("revive"))])
+	game.revive_pending = true
+	YSDK.last_ad_result = "not_shown"
+	game._on_revive_ad(false, game.session)
+	_check(panel.visible and game.hearts.is_out() and _goal_params("revive") == {"revive": {key: "not_shown"}},
+			"реклама не показалась, бесплатное уже было: окно %s, %s" % [str(panel.visible), str(Analytics.last("revive"))])
+	game.revive_pending = true
+	YSDK.last_ad_result = "rewarded"
+	game._on_revive_ad(true, game.session)
+	_check(not panel.visible and game.hearts.left == 1 and game.hearts.revives == 2
+			and _goal_params("revive") == {"revive": {key: "rewarded"}},
+			"досмотрел рекламу: окно %s, сердец %d, возрождений %d" % [str(panel.visible), game.hearts.left,
+			game.hearts.revives])
+	# Ответ рекламы после «Заново» (другая попытка) — ничего.
+	await _burn_hearts(game, 1)
+	game.revive_pending = true
+	panel.restart_button.pressed.emit()
+	await _frames(1)
+	game._on_revive_ad(true, game.session - 1)
+	_check(not panel.visible and game.hearts.left == 3 and game.hearts.revives == 0 and not game.revive_pending
+			and game.can_play(), "«Заново» из окна: окно %s, сердец %d, возрождений %d" % [str(panel.visible),
+			game.hearts.left, game.hearts.revives])
+	# Реклама не показалась, бесплатного ещё не было — продолжить бесплатно.
+	await _burn_hearts(game, 3)
+	game.revive_pending = true
+	YSDK.last_ad_result = "timeout"
+	game._on_revive_ad(false, game.session)
+	_check(not panel.visible and game.hearts.left == 1 and game.hearts.free_used
+			and _goal_params("revive") == {"revive": {key: "free"}},
+			"реклама не открылась: окно %s, сердец %d, %s" % [str(panel.visible), game.hearts.left,
+			str(Analytics.last("revive"))])
+	# Возрождения исчерпаны (флаг revive_max = 0) — только «ЗАНОВО».
+	YSDK._revive_max = 0
+	await _burn_hearts(game, 1)
+	_check(panel.visible and panel.offer == HeartsPanel.Offer.NONE, "revive_max 0: предложение %d" % panel.offer)
+	# Уровни обучения (1–3) — без сердец и без окна.
+	game.start_level(2)
+	await _frames(1)
+	_check(game.hearts.max_hearts == 0 and not panel.visible and game.hearts_bar.heart_size() == 0.0,
+			"уровень 2: сердец %d, окно %s, сердце %.0f px (ждали 0)" % [game.hearts.max_hearts, str(panel.visible),
+			game.hearts_bar.heart_size()])
+	game.queue_free()
+	await _frames(2)
+	YSDK.is_available = saved[0]
+	YSDK.last_ad_result = saved[1]
+	YSDK._revive_max = saved[2]
+	YSDK._revive_free_on_fail = saved[3]
+	YSDK._bridge = saved[4]
+	GameState.reset_progress()
+	Analytics.journal.clear()
+
+
+## n тупиковых ходов подряд, каждый блок сразу в гнездо (flush_mistake). false — тупикового хода не нашлось.
+func _burn_hearts(game: Game, n: int) -> bool:
+	for _k in n:
+		var mv := _find_dead_end_move(game)
+		if not _check(not mv.is_empty(), "уровень %d: нет тупикового хода" % game.level):
+			return false
+		_drop(game, mv[0], mv[1])
+		game.flush_mistake()
+		await _frames(1)
+	return true
 
 
 ## v — интервал секунд Analytics.span ("0-3", …, "300+").
@@ -7580,9 +7626,9 @@ func _test_toast(game: Game) -> void:
 			and font != null and font.resource_path == FONT_PATH and fs == 30
 			and label.get_theme_color(&"font_color").is_equal_approx(Color.WHITE),
 			"текст сообщения не ToastText (Nunito 800, 30, белый, строки режет Toast)")
-	var msgs: Array[String] = ["Тупик: так поле не заполнить. Отмени ход", "Нет ходов! Отмени ошибку",
-			"Всё ещё тупик — отмени ещё ход", "Сначала отмени ошибочный ход", "Подсказка откроется после просмотра рекламы",
-			"Подсказка: убраны неверные блоки (%d)", "Так остальные блоки не поместятся"]  # = TOAST_TEXTS в tools/layout_model.py
+	# Тексты «Отмени ход» ушли вместе с «Отменой» (20.1a), «Сердца кончились» — окно HeartsPanel (20.1b).
+	var msgs: Array[String] = ["Подсказка откроется после просмотра рекламы",
+			"Так остальные блоки не поместятся"]  # = TOAST_TEXTS в tools/layout_model.py
 	var line_h := font.get_height(fs)
 	var pad := t.get_theme_stylebox(&"panel").get_minimum_size()
 	var loc := TranslationServer.get_locale()

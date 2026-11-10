@@ -263,6 +263,10 @@ var _gameplay_wanted: bool = false
 var _gameplay_active: bool = false
 var _suspend: Dictionary = {}  # причины паузы геймплея: реклама, пауза платформы, скрытая вкладка
 var _last_interstitial_ms: int = 0
+## Итог последней рекламы (ad_result или "timeout"; "not_shown" — и когда показать было нельзя: нет SDK, уже идёт
+## реклама). Колбэк rewarded получает только «награда да / нет», а возрождению (20.1b) важно, почему нет: закрыл
+## до награды («closed») или реклама не показалась (бесплатное продолжение, флаг revive_free_on_fail).
+var last_ad_result: String = ""
 var interstitial_from_level: int = DEFAULT_INTERSTITIAL_FROM_LEVEL
 var interstitial_interval_ms: int = DEFAULT_INTERSTITIAL_INTERVAL_MS
 var _free_hints: int = DEFAULT_FREE_HINTS_PER_LEVEL
@@ -285,10 +289,6 @@ var _can_review: bool = false
 ## отладочной сборке; selftest подменяет.
 var review_stub: bool = OS.is_debug_build()
 
-## Итог последней рекламы (Analytics.ad: «rewarded» / «closed» / «not_shown» / «timeout» / «shown»), ставится до
-## колбэка. Окно «Сердца закончились» (20.1b) по нему отличает «закрыл до награды» (окно остаётся) от «не
-## показалась» (один раз бесплатно): колбэку rewarded приходит только bool.
-var last_ad_result: String = ""
 var _ad_kind: StringName = AD_NONE
 var _ad_callback: Callable = Callable()
 var _ad_opened: bool = false

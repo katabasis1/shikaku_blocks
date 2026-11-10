@@ -20,16 +20,21 @@ STRINGS = {
     "Супер!": ("Super!", "Süper!"),
     "Невероятно!": ("Incredible!", "İnanılmaz!"),
     # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Окно «Сердца закончились» (20.1b,
-    # hearts_out_panel.gd / .tscn)
-    "СЕРДЦА ЗАКОНЧИЛИСЬ": ("OUT OF HEARTS", "CANIN KALMADI"),
-    "+1 сердце": ("+1 heart", "+1 can"),
-    "Посмотри рекламу — и продолжай с того же места": (
-        "Watch an ad and continue from here",
-        "Reklam izle, kaldığın yerden devam et"),
-    "Продолжай с того же места": ("Continue from where you left off", "Kaldığın yerden devam et"),
-    "Начни уровень заново": ("Start the level over", "Bölüme baştan başla"),
+    # hearts_panel.gd / .tscn; турецкий — «kalp», как на значке сердца).
+    "СЕРДЦА ЗАКОНЧИЛИСЬ": ("OUT OF HEARTS", "KALPLER BİTTİ"),
+    "Продолжи с этого места или начни уровень заново": (
+        "Continue from here or start the level over",
+        "Buradan devam et ya da seviyeye baştan başla"),
+    "Начни уровень заново — ты уже знаешь, где ловушка": (
+        "Start the level over — now you know where the trap is",
+        "Seviyeye baştan başla — artık tuzağın yerini biliyorsun"),
+    "+1 СЕРДЦЕ": ("+1 HEART", "+1 KALP"),
     "ЗАНОВО": ("RESTART", "YENİDEN"),
-    "Реклама не загрузилась": ("The ad didn't load", "Reklam yüklenemedi"),
+    "Начать заново": ("Start over", "Baştan başla"),
+    "Сердце дают, если досмотреть рекламу до конца": (
+        "Watch the ad to the end to get a heart",
+        "Kalp için reklamı sonuna kadar izle"),
+    "Реклама не загрузилась — попробуй ещё раз": ("The ad didn't load — try again", "Reklam yüklenmedi — tekrar dene"),
     "Подсказка откроется после просмотра рекламы": (
         "Watch the ad to unlock the hint",
         "İpucu için reklamı izle"),
