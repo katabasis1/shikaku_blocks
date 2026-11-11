@@ -164,6 +164,9 @@ const BACKGROUND_SCENE := "res://scenes/ui/background.tscn"
 const SOFT_SHADOW_SHADER_PATH := "res://shaders/soft_shadow.gdshader"
 const TEX_SHADOW_SHADER_PATH := "res://shaders/tex_shadow.gdshader"
 const PILL_SHADER_PATH := "res://shaders/pill.gdshader"
+## Плашка «Осталось блоков» не ближе LAYOUT_PILL_CLEAR px к сердцам и «Подсказке» (20.1c; PILL_CLEAR в
+## tools/layout_model.py).
+const LAYOUT_PILL_CLEAR := 8.0
 const TRANSITION_SHADER_PATH := "res://shaders/transition.gdshader"
 const STAR_PNG_PATH := "res://assets/icons/star.png"
 const EXPECTED_PATH := "res://tests/expected_levels.txt"
@@ -248,6 +251,7 @@ func _run() -> void:
 	_test_keys()
 	_test_quality_governor()
 	_test_hearts()
+	_test_hearts_bar()
 	await _test_game()
 	print("\nВремя: %.1f с" % ((Time.get_ticks_msec() - t0) / 1000.0))
 
@@ -3010,6 +3014,7 @@ func _test_game() -> void:
 	await _test_shelf(game)
 	await _test_buttons(game)
 	await _test_header(game)
+	await _test_hearts_place(game)
 	await _test_toast(game)
 	await _test_juice(game)
 	await _test_juice_moves(game)
@@ -4156,7 +4161,8 @@ const DEAD_LEVELS: Array[int] = [12, 15, 18, 21, 24, 27, 30, 35, 40]
 
 
 ## Ошибка (20.1a) по шагам: свой тупиковый ход — сердце гаснет в кадр хода, через DEAD_AT поле темнеет (слои, не
-## board.modulate), блок трескается, сердца вздрагивают (Fx.hop → pulse); через Game.MISTAKE_RETURN блок сам
+## board.modulate), блок трескается и в тот же миг — сгоревшее сердце (HeartsBar, 20.1c: трещина, «пуф» со звуком Puff;
+## полоса не вздрагивает); через Game.MISTAKE_RETURN блок сам
 ## возвращается в гнездо без трещины, место на поле свободно. rm — «Меньше движения»: трещина сразу.
 func _dead_end_run(game: Game, rm: bool) -> void:
 	var cfg := Block.cfg()
@@ -4191,7 +4197,14 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 	var max_dim := 0.0
 	var crack_full := -1.0
 	var crack_early := false
-	var max_pulse := 1.0
+	var hk := left0 - 1  # сгоревшее сердце
+	var puffs0 := bar.puffs
+	var heart_from := -1.0
+	var heart_full := -1.0
+	var puff_at := -1.0
+	var max_heart := 1.0
+	var bar_moved := false
+	var puff_sounds0 := int(Audio.requests.get(Audio.PUFF, 0))
 	var back_at := -1.0
 	var tint_bad := ""
 	var board_mod_bad := false
@@ -4216,7 +4229,15 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 				crack_full = t
 			if not game.has_mistake():
 				back_at = t
-		max_pulse = maxf(max_pulse, bar.scale.x)
+		var hc := bar.heart_crack(hk)
+		if hc > 0.0 and heart_from < 0.0:
+			heart_from = t
+		if hc >= 0.999 and heart_full < 0.0:
+			heart_full = t
+		if bar.puffs > puffs0 and puff_at < 0.0:
+			puff_at = t
+		max_heart = maxf(max_heart, bar.heart_scale(hk))
+		bar_moved = bar_moved or not is_equal_approx(bar.scale.x, 1.0)
 		if t > end:
 			break
 	_check(dim_start >= DEAD_AT - 0.03 and dim_start <= DEAD_AT + 0.1,
@@ -4230,8 +4251,21 @@ func _dead_end_run(game: Game, rm: bool) -> void:
 	_check(not crack_early and crack_full >= DEAD_AT - 0.03 and crack_full <= crack_by,
 			"%s: трещина целиком через %.2f с (ждали %.2f…%.2f), раньше предупреждения %s" % [tag, crack_full, DEAD_AT,
 			crack_by, crack_early])
-	_check(max_pulse >= 1.15 and is_equal_approx(bar.scale.x, 1.0),
-			"%s: сердца не вздрогнули (масштаб до %.2f, в конце %.2f)" % [tag, max_pulse, bar.scale.x])
+	var hcfg := HeartsBar.cfg()
+	var heart_by := DEAD_AT + (0.0 if rm else hcfg.heart_crack_time) + 0.1
+	_check(heart_from >= DEAD_AT - 0.03 and heart_from <= DEAD_AT + 0.1 and heart_full >= heart_from
+			and heart_full <= heart_by, "%s: трещина сердца %d с %.2f до %.2f с (ждали в миг трещины блока, %.2f…%.2f)" % [
+			tag, hk, heart_from, heart_full, DEAD_AT, heart_by])
+	var puff_want := DEAD_AT + hcfg.heart_crack_time
+	var grow_ok := max_heart <= 1.001 if rm else max_heart >= 1.0 + (hcfg.heart_puff_scale - 1.0) * 0.8
+	_check(puff_at >= puff_want - 0.03 and puff_at <= puff_want + 0.1 and bar.puffs == puffs0 + 1 and grow_ok
+			and int(Audio.requests.get(Audio.PUFF, 0)) == puff_sounds0 + 1 and not bar.is_burning()
+			and is_zero_approx(bar.heart_state(hk).y),
+			"%s: «пуф» сердца через %.2f с (ждали %.2f), раз: %d, до ×%.2f, звуков Puff %d, догорело: %s" % [tag, puff_at,
+			puff_want, bar.puffs - puffs0, max_heart, int(Audio.requests.get(Audio.PUFF, 0)) - puff_sounds0,
+			not bar.is_burning()])
+	_check(not bar_moved and is_equal_approx(bar.scale.x, 1.0),
+			"%s: полоса сердец вздрогнула целиком (масштаб в конце %.2f) — горит только сердце" % [tag, bar.scale.x])
 	_check(back_at >= Game.MISTAKE_RETURN - 0.05 and back_at <= Game.MISTAKE_RETURN + 0.15,
 			"%s: ошибочный блок вернулся через %.2f с (ждали %.2f)" % [tag, back_at, Game.MISTAKE_RETURN])
 	_check(is_zero_approx(b.cracked()) and game.tray.blocks[slot] == b and b.get_parent() == game.tray.slots[slot]
@@ -5337,7 +5371,14 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	_check(not game.paused and not game.pause_panel.visible, "L%d: пауза открылась поверх окна сердец" % lvl)
 
 	# «Продолжить» бесплатно: +1 сердце, поле как было, окно закрыто, игра идёт.
+	var beats0 := int(Audio.requests.get(Audio.HEARTBEAT, 0))
 	hp.continue_button.pressed.emit()
+	# 20.1c: вернувшееся сердце вырастает из ×0 (при «Меньше движения» — проявляется), последнее — бьётся, звук раз.
+	var revived := bar.heart_state(0)
+	_check((revived.x < 0.05 or is_zero_approx(revived.y)) and bar.is_beating() and not bar.is_burning()
+			and int(Audio.requests.get(Audio.HEARTBEAT, 0)) == beats0 + 1,
+			"L%d: возрождённое сердце не растёт с нуля (%s), бьётся: %s, горит: %s, звуков Heartbeat %d" % [lvl,
+			str(revived), bar.is_beating(), bar.is_burning(), int(Audio.requests.get(Audio.HEARTBEAT, 0)) - beats0])
 	_check(not hp.visible and h.left == 1 and h.revives == 1 and h.free_used and game.can_play()
 			and not game.hint_button.disabled and bar.left == 1 and game.moves.size() == moves_before
 			and YSDK._gameplay_wanted,
@@ -6382,13 +6423,16 @@ func _layout_problems(screen: Vector2, land: bool) -> Array[String]:
 	var l := GameLayout.compute(screen, land)
 	var tag := "%dx%d %s" % [screen.x, screen.y, "альбом" if land else "портрет"]
 	# С 13.2a лоток окружён корпусом полки (shelf): на перекрытия проверяем полку, а не ряд гнёзд.
-	var keys: Array[String] = ["top_bar", "board", "remaining", "actions", "shelf"]
+	var keys: Array[String] = ["top_bar", "board", "remaining", "actions", "shelf", "remaining_hearts"]
 	var area := Rect2(Vector2.ZERO, screen).grow(0.01)
 	for k in keys + ["tray", "toast"]:
 		_place_ok(res, area.encloses(l[k]), "%s: %s %s вылезает за экран" % [tag, k, l[k]])
 	for i in keys.size():
 		for j in range(i + 1, keys.size()):
-			if not land and keys[i] == "remaining" and keys[j] == "actions":
+			var pair := [keys[i], keys[j]]
+			if pair.has("remaining") and pair.has("remaining_hearts"):
+				continue  # два места одной плашки: без сердец и с ними (20.1c)
+			if not land and pair.has("actions") and (pair.has("remaining") or pair.has("remaining_hearts")):
 				continue  # в портрете подпись стоит между кнопками внутри полосы ActionsBar
 			var a: Rect2 = l[keys[i]]
 			var b: Rect2 = l[keys[j]]
@@ -7067,7 +7111,7 @@ func _layout_matches(game: Game, tag: String) -> void:
 			"remaining": game.remaining_label, "tray": game.tray}
 	for key in nodes:
 		var c: Control = nodes[key]
-		var want: Rect2 = l[key]
+		var want: Rect2 = game.remaining_rect() if key == "remaining" else l[key]  # с сердцами — правее (20.1c)
 		var got := Rect2(c.position, c.size)
 		_check(got.position.is_equal_approx(want.position) and got.size.is_equal_approx(want.size),
 				"%s: %s стоит в %s, ждали %s" % [tag, key, got, want])
@@ -7758,6 +7802,210 @@ func _test_board_rows() -> void:
 
 
 # --- 12. Качество (14.7) ---------------------------------------------------------
+
+## Сердца: вид (20.1c, STYLE 17) — HeartsBar вне дерева, часы — вручную (_process): сгорание (ждёт трещины блока,
+## трещина, «пуф» раз, сердце гаснет), последнее бьётся (сигнал last_heart раз), возрождение (pop) растёт с дожимом,
+## новый уровень — сразу; «Меньше движения» — без раздувания, роста и биения; «без эффектов» — гаснет в тот же кадр.
+func _test_hearts_bar() -> void:
+	_section("Сердца: вид (20.1c)")
+	var c := HeartsBar.cfg()
+	_check(is_equal_approx(c.heart_burn_delay, Game.MISTAKE_WARN) and c.heart_crack_time > 0.0
+			and c.heart_puff_scale > 1.0 and c.heart_puff_time > 0.0 and c.heart_puff_sparks > 0
+			and c.heart_beat > 0.0 and c.heart_beat <= 0.3 and c.heart_pop_time > 0.0
+			and c.heart_beat_period >= HeartsBar.BEAT_AT[-1] + HeartsBar.BEAT_LEN + 0.2,
+			"JuiceConfig «Сердца»: сгорание не в миг трещины блока (%.2f, Game.MISTAKE_WARN %.2f) или числа вне смысла" % [
+			c.heart_burn_delay, Game.MISTAKE_WARN])
+	_check(HeartsBar.BEAT_AT.size() == HeartsBar.BEAT_POWER.size() and is_equal_approx(HeartsBar.beat_shape(
+			HeartsBar.BEAT_AT[0] + HeartsBar.BEAT_LEN * 0.5, 1.0), HeartsBar.BEAT_POWER[0])
+			and is_zero_approx(HeartsBar.beat_shape(HeartsBar.BEAT_AT[-1] + HeartsBar.BEAT_LEN + 0.01, 1.0))
+			and is_zero_approx(HeartsBar.beat_shape(0.3, 0.0)) and is_equal_approx(HeartsBar.back_out(1.0), 1.0)
+			and is_zero_approx(HeartsBar.back_out(0.0)) and HeartsBar.back_out(0.7) > 1.0,
+			"HeartsBar: удар биения не той силы, биение не кончается или рост без дожима")
+	var saved_rm := GameState.reduce_motion
+	for rm in [false, true]:
+		GameState.reduce_motion = rm
+		_hearts_bar_run(rm)
+	GameState.reduce_motion = false
+	c.set_effects_off(true)
+	var bar := HeartsBar.new()
+	bar.size = Vector2(300, 96)
+	bar.show_hearts(3, 3)
+	var got: Array[int] = []
+	bar.puffed.connect(func(k: int) -> void: got.append(k))
+	bar.show_hearts(1, 3)
+	bar._process(1.0 / 60.0)
+	_check(got == [1, 2] or got == [2, 1], "без эффектов: «пуф» сердец 1 и 2 не в первый кадр (%s)" % str(got))
+	_check(not bar.is_burning() and is_zero_approx(bar.heart_state(1).y) and is_zero_approx(bar.heart_state(2).y)
+			and is_equal_approx(bar.heart_scale(0), 1.0) and not bar.is_processing(),
+			"без эффектов: сердца ещё горят, видны или последнее бьётся (масштаб %.2f)" % bar.heart_scale(0))
+	bar.free()
+	c.set_effects_off(false)
+	GameState.reduce_motion = saved_rm
+
+
+## Место сердец на экране (20.1c): в портрете ряд сердец шире прежней «Отмены» — плашка «Осталось блоков» на уровне
+## с сердцами стоит правее (GameLayout remaining_hearts), без сердец — по центру (remaining); ряд не шире hearts_row
+## (больше трёх сердец — мельче). Плашка с самым длинным числом не задевает ни одно сердце и «Подсказку»; до трёх
+## сердец — полного размера; в альбоме плашка не двигается. Переход «без сердец → с сердцами» (новый уровень) —
+## через _reset_win, как в _begin_level.
+func _test_hearts_place(game: Game) -> void:
+	_section("Сердца: место на экране (20.1c)")
+	var real := game.size
+	var saved_max := game.hearts.max_hearts
+	var saved_left := game.hearts.left
+	var saved_text := game.remaining_label.text
+	var counts: Array[int] = [0, 1, 3, YSDK.FLAG_HEARTS_MAX]
+	for screen: Vector2 in [Vector2(720, 1280), Vector2(720, 1560), Vector2(2276, 1280), Vector2(1440, 1280)]:
+		game.apply_layout(screen)
+		for n in counts:
+			game.hearts.reset(n)
+			game._reset_win()  # как _begin_level: место плашки — после hearts.reset
+			game.update_hud()
+			game.remaining_label.text = tr("Осталось блоков: %d") % 12
+			await _frames(1)
+			var l := game.layout
+			var tag := "%dx%d %s, сердец %d" % [screen.x, screen.y, "альбом" if game.landscape else "портрет", n]
+			var want: Rect2 = l.remaining_hearts if n > 0 else l.remaining
+			var rem := game.remaining_label
+			_check(Rect2(rem.position, rem.size).is_equal_approx(want) and game.remaining_rect().is_equal_approx(want),
+					"%s: «Осталось блоков» в %s, ждали %s" % [tag, Rect2(rem.position, rem.size), want])
+			if game.landscape:
+				_check(want.is_equal_approx(l.remaining), "%s: в альбоме плашка с сердцами переехала" % tag)
+			var bar := game.hearts_bar
+			_check(is_equal_approx(bar.row_max, float(l.hearts_row)) and bar.max_hearts == n,
+					"%s: ряд сердец не шире %.0f (row_max %.0f), сердец %d" % [tag, l.hearts_row, bar.row_max, bar.max_hearts])
+			if n == 0:
+				continue
+			_check(n > 3 or is_equal_approx(bar.heart_size(), HeartsBar.HEART),
+					"%s: сердце %.1f px, ждали %.0f" % [tag, bar.heart_size(), HeartsBar.HEART])
+			_check(bar.heart_size() >= HeartsBar.HEART * 0.5, "%s: сердце %.1f px — мельче половины" % [tag, bar.heart_size()])
+			var pill := rem.pill.get_global_rect()
+			var hint := game.hint_button.get_global_rect()
+			var acts := game.actions_bar.get_global_rect().grow(0.5)
+			for k in n:
+				var hr := bar.heart_rect(k)
+				hr.position += bar.global_position
+				_check(acts.encloses(hr) and not hr.grow(LAYOUT_PILL_CLEAR).intersects(pill) and not hr.intersects(hint),
+						"%s: сердце %d %s задевает плашку %s или «Подсказку» %s" % [tag, k, hr, pill, hint])
+			_check(not pill.grow(LAYOUT_PILL_CLEAR).intersects(hint), "%s: плашка %s на «Подсказке» %s" % [tag, pill, hint])
+	game.hearts.reset(saved_max)
+	game.hearts.left = saved_left
+	game.apply_layout(real)
+	game.update_hud()
+	game.remaining_label.text = saved_text
+	await _frames(2)
+	_check(Rect2(game.remaining_label.position, game.remaining_label.size).is_equal_approx(game.remaining_rect()),
+			"после проверки мест плашка не вернулась на место")
+	print("  сердца и «Осталось блоков»: 0 / 1 / 3 / %d сердец, портрет 9:16 и 9:19,5, альбом" % YSDK.FLAG_HEARTS_MAX)
+
+
+## Полоса из трёх сердец по шагам 1/60 с: сгорают два (третье бьётся), потом последнее, возрождение, «Заново».
+func _hearts_bar_run(rm: bool) -> void:
+	var c := HeartsBar.cfg()
+	var tag := "сердца%s" % (", «Меньше движения»" if rm else "")
+	var dt := 1.0 / 60.0
+	var bar := HeartsBar.new()
+	bar.size = Vector2(300, 96)
+	bar.show_hearts(3, 3)
+	_check(not bar.is_processing() and not bar.is_burning() and bar.heart_state(0) == Vector3(1, 1, 0)
+			and bar.heart_state(2) == Vector3(1, 1, 0), "%s: новый уровень — не сразу целые (%s)" % [tag,
+			str(bar.heart_state(2))])
+	var puffs: Array[int] = []
+	var beats := [0]
+	bar.puffed.connect(func(k: int) -> void: puffs.append(k))
+	bar.last_heart.connect(func() -> void: beats[0] += 1)
+	# Первое сгорание: до трещины блока сердце целое, трещина, «пуф» раз, гаснет.
+	bar.show_hearts(2, 3)
+	var t := 0.0
+	var crack_from := -1.0
+	var crack_full := -1.0
+	var puff_at := -1.0
+	var max_scale := 1.0
+	var alpha_up := false
+	var prev_alpha := 1.0
+	while bar.is_burning() and t < 3.0:
+		bar._process(dt)
+		t += dt
+		var st := bar.heart_state(2)
+		if st.z > 0.0 and crack_from < 0.0:
+			crack_from = t
+		if st.z >= 0.999 and crack_full < 0.0:
+			crack_full = t
+		if not puffs.is_empty() and puff_at < 0.0:
+			puff_at = t
+		max_scale = maxf(max_scale, st.x)
+		alpha_up = alpha_up or st.y > prev_alpha + 0.001
+		prev_alpha = st.y
+	var crack_end := c.heart_burn_delay + (0.0 if rm else c.heart_crack_time)
+	_check(crack_from >= c.heart_burn_delay - dt * 1.5 and crack_from <= c.heart_burn_delay + dt * 1.5
+			and crack_full <= crack_end + dt * 1.5,
+			"%s: трещина с %.2f до %.2f с (ждали с %.2f до %.2f)" % [tag, crack_from, crack_full, c.heart_burn_delay,
+			crack_end])
+	var puff_want := c.heart_burn_delay + c.heart_crack_time
+	_check(puffs == [2] and puff_at >= puff_want - dt * 1.5 and puff_at <= puff_want + dt * 1.5 and bar.puffs == 1,
+			"%s: «пуф» %s через %.2f с (ждали сердце 2 через %.2f)" % [tag, str(puffs), puff_at, puff_want])
+	var grow_ok := is_equal_approx(max_scale, 1.0) if rm else max_scale >= 1.0 + (c.heart_puff_scale - 1.0) * 0.9
+	_check(grow_ok and not alpha_up and is_zero_approx(bar.heart_state(2).y) and t <= puff_want + c.heart_puff_time
+			+ dt * 2.0, "%s: «пуф» до ×%.2f (ждали %s), сердце светлело %s, догорело через %.2f с" % [tag, max_scale,
+			"1" if rm else "×%.2f" % c.heart_puff_scale, alpha_up, t])
+	_check(beats[0] == 0 and not bar.is_beating() and not bar.is_processing() and bar.heart_state(0) == Vector3(1, 1, 0),
+			"%s: из двух сердец бьётся какое-то или кадры идут без движения" % tag)
+	# Второе: пока горит, последнее не бьётся; догорело — бьётся (last_heart раз), «Меньше движения» — не двигается.
+	bar.show_hearts(1, 3)
+	var beat_early := false
+	t = 0.0
+	while bar.is_burning() and t < 3.0:
+		bar._process(dt)
+		t += dt
+		beat_early = beat_early or (bar.is_burning() and bar.is_beating())  # догорело в этом кадре — уже можно
+	var max_beat := 1.0
+	for i in int(c.heart_beat_period / dt) + 2:
+		if bar.is_processing():
+			bar._process(dt)
+		max_beat = maxf(max_beat, bar.heart_scale(0))
+	_check(not beat_early and beats[0] == 1 and bar.is_beating() and puffs == [2, 1],
+			"%s: последнее сердце — бьётся раньше, чем догорело второе (%s), сигналов %d, «пуфы» %s" % [tag, beat_early,
+			beats[0], str(puffs)])
+	var beat_ok := is_equal_approx(max_beat, 1.0) and not bar.is_processing() if rm \
+			else absf(max_beat - (1.0 + c.heart_beat)) < c.heart_beat * 0.1 and bar.is_processing()
+	_check(beat_ok, "%s: последнее сердце бьётся до ×%.3f (ждали %s), кадры идут: %s" % [tag, max_beat,
+			"1, без кадров" if rm else "×%.3f" % (1.0 + c.heart_beat), bar.is_processing()])
+	# Последнее сгорает — биение сразу стоп; возрождение — растёт (с дожимом) или проявляется, снова бьётся.
+	bar.show_hearts(0, 3)
+	_check(not bar.is_beating() and bar.is_burning(0), "%s: последнее сгорает, а бьётся" % tag)
+	while bar.is_burning() and t < 6.0:
+		bar._process(dt)
+		t += dt
+	bar.show_hearts(1, 3)
+	bar.pop()
+	var first := bar.heart_state(0)
+	var max_pop := 0.0
+	var min_alpha := 1.0
+	for i in int(c.heart_pop_time / dt) + 2:
+		bar._process(dt)
+		var st := bar.heart_state(0)
+		var e := (i + 1) * dt  # биение началось вместе с ростом
+		if not rm and e < c.heart_pop_time:
+			max_pop = maxf(max_pop, st.x / (1.0 + c.heart_beat * HeartsBar.beat_shape(e, c.heart_beat_period)))
+		min_alpha = minf(min_alpha, st.y)
+	var pop_ok := is_zero_approx(first.y) and is_equal_approx(first.x, 1.0) and is_equal_approx(bar.heart_state(0).y,
+			1.0) if rm else first.x < 0.05 and is_equal_approx(first.y, 1.0) and max_pop > 1.02 \
+			and is_equal_approx(min_alpha, 1.0)
+	_check(pop_ok and puffs == [2, 1, 0] and beats[0] == 2,
+			"%s: возрождение — в начале %s, рост до ×%.2f, «пуфы» %s, биений %d" % [tag, str(first), max_pop, str(puffs),
+			beats[0]])
+	# «Заново» посреди сгорания: сразу три целых, «пуфа» нет.
+	bar.show_hearts(0, 3)
+	bar._process(dt)
+	bar.show_hearts(3, 3)
+	for i in 60:
+		if bar.is_processing():
+			bar._process(dt)
+	_check(puffs.size() == 3 and not bar.is_burning() and not bar.is_beating() and not bar.is_processing()
+			and bar.heart_state(0) == Vector3(1, 1, 0), "%s: «Заново» посреди сгорания — «пуф» %s, горит %s, бьётся %s" % [
+			tag, str(puffs), bar.is_burning(), bar.is_beating()])
+	bar.free()
+
 
 ## Сердца (20.1a): правила Hearts — все случаи и сценарии tools/hearts_model.py (эталон tests/hearts_expected.txt):
 ## сколько сердец на попытку (max_for), ошибки, подсказки, возрождение за рекламу и бесплатное (try_revive), звёзды;

@@ -521,9 +521,12 @@ def draw_board_partial(cv, frame, cell_px, n, placed):
         sp.draw_block(cv, ox + rx * cell_px, oy + ry * cell_px, s, rw, rh, rw * rh, (nnx - rx, nny - ry), False)
 
 
-def render_game(w=720, h=1280, level=20, placed=None, theme=None):
-    """Экран игры без несомого блока: поле (часть блоков стоит), шапка, плашка, кнопки; лоток — только портрет
-    720×1280 (sp.draw_tray рисует места портрета)."""
+def render_game(w=720, h=1280, level=20, placed=None, theme=None, hearts=None, heart_states=None, pill_key=None):
+    """Экран игры без несомого блока: поле (часть блоков стоит), шапка, плашка, кнопки и сердца на месте прежней
+    «Отмены» (20.1); лоток — только портрет 720×1280 (sp.draw_tray рисует места портрета). hearts — (осталось,
+    всего); без него — полные DEFAULT_HEARTS с уровня DEFAULT_HEARTS_FROM_LEVEL (на 1–3 сердец нет). Плашка
+    «Осталось блоков» — как Game.remaining_rect: с сердцами в L["remaining_hearts"], без — в L["remaining"]
+    (pill_key — другое место)."""
     land = lm.pick(w, h, False)
     L = lm.compute(w, h, land)
     cv = game_background(w, h, theme)
@@ -532,16 +535,18 @@ def render_game(w=720, h=1280, level=20, placed=None, theme=None):
     draw_board_partial(cv, frame, cell_px, level, sp.PLACED if placed is None else placed)
     if not land and (w, h) == (720, 1280):
         sp.draw_tray(cv)
-        sp.draw_buttons(cv)
-    else:
-        d = sp.BTN_D
-        tx, ty, tw, th_ = L["top_bar"]
-        ax, ay, aw, ah = L["actions"]
-        for name, cx, cy in (("pause", tx + d / 2, ty + th_ / 2), ("restart", tx + tw - d / 2, ty + th_ / 2),
-                             ("undo", ax + d / 2, ay + ah / 2), ("hint", ax + aw - d / 2, ay + ah / 2)):
-            sp.draw_button(cv, cx, cy, d, name, "3" if name == "hint" else None)
+    d = sp.BTN_D
+    tx, ty, tw, th_ = L["top_bar"]
+    ax, ay, aw, ah = L["actions"]
+    for name, cx, cy in (("pause", tx + d / 2, ty + th_ / 2), ("restart", tx + tw - d / 2, ty + th_ / 2),
+                         ("hint", ax + aw - d / 2, ay + ah / 2)):
+        sp.draw_button(cv, cx, cy, d, name, "3" if name == "hint" else None)
+    if hearts is None:
+        full = int(gd("autoload/ysdk.gd", "DEFAULT_HEARTS"))
+        hearts = (full, full) if level >= gd("autoload/ysdk.gd", "DEFAULT_HEARTS_FROM_LEVEL") else (0, 0)
+    draw_hearts_bar(cv, *hearts_bar_rect(L), hearts[0], hearts[1], heart_states)
     sp.draw_header(cv, L, level=level)
-    sp.draw_pill(cv, L)
+    sp.draw_pill(cv, dict(L, remaining=L[pill_key or ("remaining_hearts" if hearts[1] > 0 else "remaining")]))
     return cv, L
 
 
@@ -1383,29 +1388,277 @@ def hearts_offer_text(offer):
 
 
 def draw_heart_empty(cv, x, y, s):
-    """HeartsBar._draw, сгоревшее сердце: контур heart_points в квадрате s с левым верхом (x, y), цвет EMPTY."""
+    """Сгоревшее сердце (лунка HeartsBar._draw_socket) в квадрате s с левым верхом (x, y): окно «Сердца
+    закончились» (ряд пустых сердец — тот же HeartsBar)."""
+    draw_heart_socket(cv, x + s / 2, y + s / 2, s)
+
+
+# ---------------------------------------------------------------- сердца на полосе (20.1c, STYLE 17)
+
+def _hb_src():
+    return open(os.path.join(ROOT, HEARTS_BAR_GD), encoding="utf-8").read()
+
+
+def hb_floats(name):
+    """const NAME: Array[float] = [a, b, …] из hearts_bar.gd."""
+    return [float(v) for v in re.search(r"const %s\b[^=]*=\s*\[([^\]]*)\]" % name, _hb_src()).group(1).split(",")]
+
+
+def hb_crack():
+    """HeartsBar.CRACK: ломаные трещины (точки — доли стороны от середины)."""
+    body = _hb_src().split("const CRACK := [", 1)[1].split("\n]", 1)[0]
+    return [[tuple(float(x) for x in v.split(",")) for v in re.findall(r"Vector2\(([^)]*)\)", row)]
+            for row in re.findall(r"^\t\[(.*)\],?$", body, re.M)]
+
+
+def _lighter(c, t):
+    return tuple(v + (1.0 - v) * t for v in c[:3]) + (c[3] if len(c) > 3 else 1.0,)
+
+
+def _darker(c, t):
+    return tuple(v * (1.0 - t) for v in c[:3]) + (c[3] if len(c) > 3 else 1.0,)
+
+
+def heart_local(s):
+    """HeartsBar.heart_points(−s/2·(1, 1), s): контур сердца вокруг его середины."""
     k = s / 32.0
     top_k, hh = gd(HEARTS_BAR_GD, "HEART_TOP"), gd(HEARTS_BAR_GD, "HEART_H")
     n = int(gd(HEARTS_BAR_GD, "POINTS"))
-    top = y + (s - hh * k) * 0.5
-    pts = []
+    top = -s / 2 + (s - hh * k) * 0.5
+    out = []
     for i in range(n):
         t = 2 * math.pi * i / n
         px = 16.0 * math.sin(t) ** 3
         py = 13.0 * math.cos(t) - 5.0 * math.cos(2 * t) - 2.0 * math.cos(3 * t) - math.cos(4 * t)
-        pts.append((x + (px + 16.0) * k, top + (top_k - py) * k))
-    x0, y0 = int(math.floor(x)) - 1, int(math.floor(y)) - 1
-    W, H = int(math.ceil(s)) + 3, int(math.ceil(s)) + 3
-    im = Image.new("L", (W * 4, H * 4), 0)
-    ImageDraw.Draw(im).polygon([((a - x0) * 4, (b - y0) * 4) for a, b in pts], fill=255)
-    cov = np.asarray(im.resize((W, H), Image.BOX), dtype=float) / 255.0
-    col = re.search(r"const EMPTY := Color\(([^)]*)\)", open(os.path.join(ROOT, HEARTS_BAR_GD),
-                                                           encoding="utf-8").read()).group(1)
-    r, g, b, a = (float(v) for v in col.split(","))
-    layer = np.zeros((H, W, 4))
-    layer[..., :3] = (r, g, b)
-    layer[..., 3] = a * cov
-    cv.over(x0, y0, layer)
+        out.append((-s / 2 + (px + 16.0) * k, top + (top_k - py) * k))
+    return out
+
+
+def hb_crack_part(line, part, s):
+    """HeartsBar.crack_part: начало ломаной line длиной part от всей, px."""
+    if len(line) < 2 or part <= 0.0:
+        return []
+    total = sum(math.dist(line[i - 1], line[i]) for i in range(1, len(line)))
+    want = total * min(max(part, 0.0), 1.0)
+    out = [(line[0][0] * s, line[0][1] * s)]
+    for i in range(1, len(line)):
+        a, b = line[i - 1], line[i]
+        d = math.dist(a, b)
+        if want >= d:
+            out.append((b[0] * s, b[1] * s))
+            want -= d
+            continue
+        if want > 0.0:
+            q = want / d
+            out.append(((a[0] + (b[0] - a[0]) * q) * s, (a[1] + (b[1] - a[1]) * q) * s))
+        break
+    return out
+
+
+class HeartPaint:
+    """Слой одного сердца: середина (cx, cy), масштаб sc (draw_set_transform), сглаживание ×SS; слои — по порядку
+    HeartsBar._draw_candy / _draw_socket, «поверх» друг друга; в конце — на холст."""
+    SS = 4
+
+    def __init__(self, cx, cy, s, sc=1.0):
+        self.cx, self.cy, self.sc = cx, cy, sc
+        half = s * sc * 0.75 + 6
+        self.x0, self.y0 = int(math.floor(cx - half)), int(math.floor(cy - half))
+        self.W = self.H = int(math.ceil(2 * half)) + 2
+        self.buf = np.zeros((self.H, self.W, 4))     # с премультипликацией
+
+    def _px(self, pts):
+        k = self.SS
+        return [((self.cx + self.sc * x - self.x0) * k, (self.cy + self.sc * y - self.y0) * k) for x, y in pts]
+
+    def _cov(self, draw):
+        im = Image.new("L", (self.W * self.SS, self.H * self.SS), 0)
+        draw(ImageDraw.Draw(im))
+        return np.asarray(im.resize((self.W, self.H), Image.BOX), dtype=float) / 255.0
+
+    def poly(self, pts):
+        return self._cov(lambda d: d.polygon(self._px(pts), fill=255))
+
+    def line(self, pts, w, closed=False):
+        q = self._px(pts + (pts[:1] if closed else []))
+        return self._cov(lambda d: d.line(q, fill=255, width=max(1, round(w * self.sc * self.SS)), joint="curve"))
+
+    def arc(self, c, r, a0, a1, w):
+        k, rr = self.SS, (r + w / 2) * self.sc * self.SS
+        (x, y), = self._px([c])
+        return self._cov(lambda d: d.arc((x - rr, y - rr, x + rr, y + rr), math.degrees(a0), math.degrees(a1),
+                                         fill=255, width=max(1, round(w * self.sc * k))))
+
+    def paint(self, cov, color, alpha=1.0):
+        """color — (r, g, b[, a]) или массив (H, 1, 3) цветов по строкам."""
+        col = np.asarray(color, dtype=float)
+        rgb = col[..., :3] if col.ndim > 1 else col[:3]
+        a = cov[..., None] * alpha * (col[3] if col.ndim == 1 and col.size > 3 else 1.0)
+        self.buf[..., :3] = rgb * a + self.buf[..., :3] * (1.0 - a)
+        self.buf[..., 3:4] = a + self.buf[..., 3:4] * (1.0 - a)
+
+    def ramp(self, s, top, bottom, dy=0.0):
+        """HeartsBar._ramp: цвет по высоте в квадрате сердца (dy — вершины сдвинуты, цвета — от прежних)."""
+        ys = (np.arange(self.H) + self.y0 + 0.5 - self.cy) / self.sc
+        t = np.clip((ys - dy) / s + 0.5, 0.0, 1.0)[:, None, None]
+        return np.asarray(top[:3]) * (1 - t) + np.asarray(bottom[:3]) * t
+
+    def done(self, cv):
+        a = self.buf[..., 3:4]
+        out = np.concatenate([np.where(a > 1e-6, self.buf[..., :3] / np.maximum(a, 1e-6), 0.0), a], 2)
+        cv.over(self.x0, self.y0, out)
+
+
+def _moved(pts, k, by):
+    return [(x * k + by[0], y * k + by[1]) for x, y in pts]
+
+
+def draw_heart_socket(cv, cx, cy, s):
+    """HeartsBar._draw_socket: лунка DEEP со светлым кантом снизу (EMPTY_EDGE на EDGE_Y стороны ниже)."""
+    hp = HeartPaint(cx, cy, s)
+    pts = heart_local(s)
+    hp.paint(hp.poly(_moved(pts, 1.0, (0.0, max(1.5, gd(HEARTS_BAR_GD, "EDGE_Y") * s)))), gd(HEARTS_BAR_GD, "EMPTY_EDGE"))
+    hp.paint(hp.poly(pts), gd(HEARTS_BAR_GD, "EMPTY"))
+    hp.done(cv)
+
+
+def draw_heart_candy(cv, cx, cy, s, sc=1.0, a=1.0, crack=0.0):
+    """HeartsBar._draw_candy: мармеладное сердце (тень ×3, губа, лицо, кайма, блик-серп, трещина crack 0…1)."""
+    g = lambda n: gd(HEARTS_BAR_GD, n)      # noqa: E731
+    col = g("COLOR") + (1.0,) if len(g("COLOR")) == 3 else g("COLOR")
+    hp = HeartPaint(cx, cy, s, sc)
+    pts = heart_local(s)
+    shadow = g("SHADOW")
+    for k in hb_floats("SHADOW_GROW"):
+        hp.paint(hp.poly(_moved(pts, k, (0.0, g("SHADOW_Y") * s))), shadow, a)
+    dy = g("DEPTH") * s
+    hp.paint(hp.poly(_moved(pts, 1.0, (0.0, dy))), hp.ramp(s, _darker(col, g("LIP_TOP")), _darker(col, g("LIP_BOTTOM")),
+                                                         dy), a)
+    hp.paint(hp.poly(pts), hp.ramp(s, _lighter(col, g("FACE_TOP")), _darker(col, g("FACE_BOTTOM"))), a)
+    rim = _darker(col, g("RIM_DARK"))[:3] + (g("RIM_ALPHA"),)
+    hp.paint(hp.line(_moved(pts, g("RIM_INSET"), (0.0, 0.0)), g("RIM_W") * s, closed=True), rim, a)
+    gc = g("GLINT_C")
+    hp.paint(hp.arc((gc[0] * s, gc[1] * s), g("GLINT_R") * s, g("GLINT_FROM"), g("GLINT_TO"), g("GLINT_W") * s),
+             (1.0, 1.0, 1.0, g("GLINT_ALPHA")), a)
+    if crack > 0.0:
+        w = max(g("CRACK_MIN_W"), g("CRACK_W") * s)
+        lit = (0.0, max(1.0, g("CRACK_LIT") * s))
+        for line in hb_crack():
+            cp = hb_crack_part(line, crack, s)
+            if len(cp) < 2:
+                continue
+            hp.paint(hp.line(_moved(cp, 1.0, lit), w), g("CRACK_LIGHT"), a)
+            hp.paint(hp.line(cp, w), _darker(col, g("CRACK_DARK")), a)
+    hp.done(cv)
+
+
+def draw_hearts_bar(cv, x, y, w, h, left, n_max, states=None):
+    """HeartsBar._draw в прямоугольнике (x, y, w, h): heart_size, heart_rect; states — {k: (масштаб, непрозрачность,
+    трещина)} (HeartsBar.heart_state), без них — целые и лунки."""
+    if n_max <= 0:
+        return 0.0
+    gap = gd(HEARTS_BAR_GD, "GAP")
+    s = max(0.0, min(gd(HEARTS_BAR_GD, "HEART"), min(h, (w - gap * (n_max - 1)) / n_max)))
+    for k in range(n_max):
+        cx, cy = x + k * (s + gap) + s / 2, y + h / 2
+        st = (states or {}).get(k, (1.0, 1.0, 0.0) if k < left else (1.0, 0.0, 0.0))
+        if k >= left:
+            draw_heart_socket(cv, cx, cy, s)
+        if st[1] > 0.0:
+            draw_heart_candy(cv, cx, cy, s, st[0], st[1], st[2])
+    return s
+
+
+def hearts_bar_rect(L):
+    """Место ряда сердец: HeartsBar в ActionsBar (game.tscn: HBox, справа HintButton BTN_D, промежуток separation),
+    не шире L["hearts_row"] (HeartsBar.row_max, 20.1c; 0 — вся полоса)."""
+    ax, ay, aw, ah = L["actions"]
+    sep = tscn_int(tscn_nodes("scenes/game/game.tscn")["ActionsBar"], "theme_override_constants/separation", 14)
+    w = aw - sp.BTN_D - sep
+    return ax, ay, min(w, L["hearts_row"]) if L.get("hearts_row") else w, ah
+
+
+def juice_heart(name):
+    """Число группы «Сердца» JuiceConfig (scripts/juice_config.gd, @export var heart_… := …)."""
+    src = open(os.path.join(ROOT, "scripts", "juice_config.gd"), encoding="utf-8").read()
+    return float(re.search(r"@export var %s := ([\d.]+)" % name, src).group(1))
+
+
+def hb_back_out(q):
+    """HeartsBar.back_out: рост с дожимом (easeOutBack)."""
+    c1, x = 1.70158, q - 1.0
+    return 1.0 + (c1 + 1.0) * x ** 3 + c1 * x * x
+
+
+def hb_burn_state(p, calm=False):
+    """HeartsBar.heart_state горящего сердца через p с от начала трещины (p < 0 — ещё целое)."""
+    crack_t, puff_t, puff_k = juice_heart("heart_crack_time"), juice_heart("heart_puff_time"), juice_heart("heart_puff_scale")
+    if p < 0:
+        return (1.0, 1.0, 0.0)
+    if p < crack_t:
+        return (1.0, 1.0, 1.0 if calm else p / crack_t)
+    q = min(max((p - crack_t) / puff_t, 0.0), 1.0)
+    return (1.0 if calm else 1.0 + (puff_k - 1.0) * (1.0 - (1.0 - q) ** 2), 1.0 - q, 1.0)
+
+
+def render_hearts_bar():
+    """Кадр G20_1_hearts.png (20.1c, STYLE 17): сверху — экран игры (портрет 3 из 3, портрет 1 из 3 на ударе
+    биения, альбом 2 из 3), снизу — полоса крупно (×ZOOM) по шагам: целые, трещина, «пуф», лунка, удар
+    последнего, рост при возрождении, «Меньше движения». Искры «пуфа» — частицы Juice, в кадре не рисуются."""
+    ZOOM = 2
+    beat = juice_heart("heart_beat")
+    full = int(gd("autoload/ysdk.gd", "DEFAULT_HEARTS"))
+    crack_t, puff_t = juice_heart("heart_crack_time"), juice_heart("heart_puff_time")
+    top = [("Портрет: 3 из 3", render_game(720, 1280, hearts=(full, full))[0].image()),
+           ("1 из 3: удар ×%.2f" % (1 + beat), render_game(720, 1280, hearts=(1, full),
+                                                            heart_states={0: (1 + beat, 1.0, 0.0)})[0].image()),
+           ("Альбом 16:9: 2 из 3", render_game(2276, 1280, hearts=(full - 1, full))[0].image())]
+    q_pop = 0.25
+    steps = [("Целые", full, {}),
+             ("Трещина 50 %", full - 1, {full - 1: hb_burn_state(crack_t * 0.5)}),
+             ("Трещина целиком", full - 1, {full - 1: hb_burn_state(crack_t)}),
+             ("«Пуф» 40 %%: ×%.2f" % hb_burn_state(crack_t + puff_t * 0.4)[0], full - 1,
+              {full - 1: hb_burn_state(crack_t + puff_t * 0.4)}),
+             ("Лунка: 2 из 3", full - 1, {}),
+             ("Последнее: удар ×%.2f" % (1 + beat), 1, {0: (1 + beat, 1.0, 0.0)}),
+             ("Возрождение: ×%.2f" % hb_back_out(q_pop), 1, {0: (hb_back_out(q_pop), 1.0, 0.0)}),
+             ("…дожим ×%.2f" % hb_back_out(0.7), 1, {0: (hb_back_out(0.7), 1.0, 0.0)}),
+             ("Меньше движения: тает", full - 1, {full - 1: hb_burn_state(crack_t + puff_t * 0.5, calm=True)}),
+             ("Сердец нет (окно)", 0, {})]
+    cv0, L = render_game(720, 1280, hearts=(0, 0), pill_key="remaining_hearts")
+    base = np.asarray(cv0.image())
+    bx, by, bw, bh = hearts_bar_rect(L)
+    hs, gap = gd(HEARTS_BAR_GD, "HEART"), gd(HEARTS_BAR_GD, "GAP")
+    crop = (int(bx - 14), int(by - 6), int(bx + full * hs + (full - 1) * gap + 14), int(by + bh + 6))
+    cells = []
+    for title, left, st in steps:
+        cv = sp.Canvas(base)
+        draw_hearts_bar(cv, bx, by, bw, bh, left, full, st)
+        im = cv.image().crop(crop)
+        cells.append((title, im.resize((im.width * ZOOM, im.height * ZOOM), Image.LANCZOS)))
+    tops = [(t, im.resize((im.width // 2, im.height // 2), Image.LANCZOS)) for t, im in top]
+    cols = 5
+    cw, ch = cells[0][1].size
+    W = max(sum(im.width for _, im in tops) + 24 * (len(tops) - 1), cols * cw + 24 * (cols - 1))
+    row_h = ch + 56
+    H = 56 + max(im.height for _, im in tops) + 24 + row_h * ((len(cells) + cols - 1) // cols)
+    out = Image.new("RGB", (W, H), (30, 20, 70))
+    d = ImageDraw.Draw(out)
+    f = ImageFont.truetype(BLACK, 30)
+    f2 = ImageFont.truetype(BLACK, 26)
+    x = 0
+    for title, im in tops:
+        out.paste(im, (x, 56))
+        d.text((x + 16, 12), title, font=f, fill=(255, 255, 255))
+        x += im.width + 24
+    y0 = 56 + max(im.height for _, im in tops) + 24
+    for i, (title, im) in enumerate(cells):
+        cx, cy = (i % cols) * (cw + 24), y0 + (i // cols) * row_h
+        d.text((cx + 8, cy + 10), title, font=f2, fill=(255, 255, 255))
+        out.paste(im, (cx, cy + 50))
+    path = os.path.join(FRAMES, "G20_1_hearts.png")
+    out.save(path, optimize=True)
+    return path, "сердце %.0f px, полоса портрета %.0f×%.0f, шагов %d" % (hs, bw, bh, len(cells))
 
 
 def render_hearts(offer="AD", w=720, h=1280, locale="ru", note=""):
@@ -1417,7 +1670,8 @@ def render_hearts(offer="AD", w=720, h=1280, locale="ru", note=""):
     tr = po(locale)
     t = lambda s: tr.get(s, s) or s       # noqa: E731
     N = tscn_nodes(HEARTS_TSCN)
-    cv, _ = render_game(w, h)
+    full = int(gd("autoload/ysdk.gd", "DEFAULT_HEARTS"))
+    cv, _ = render_game(w, h, hearts=(0, full))
     dim = tuple(float(x) for x in re.match(r"Color\((.*)\)", N["Dim"]["color"]).group(1).split(","))
     cv.rgb = cv.rgb * (1 - dim[3]) + np.asarray(dim[:3]) * dim[3]
 
@@ -1649,7 +1903,7 @@ def background_checks():
 
 def main(argv):
     every = not any(a in argv for a in ("--win", "--panels", "--toasts", "--menu", "--map", "--leaders", "--lab",
-                                        "--background", "--hearts"))
+                                        "--background", "--hearts", "--hearts-bar"))
     if every or "--background" in argv:
         lines, items = background_checks()
         for x in lines:
@@ -1735,6 +1989,10 @@ def main(argv):
             items.append((title, img))
             print("сердца %s %d×%d %s: %s" % (offer, w, h, loc, info))
         print(sheet(items, "G20_1b_hearts.png", scale=0.5))
+    if every or "--hearts-bar" in argv:
+        path, info = render_hearts_bar()
+        print("полоса сердец: " + info)
+        print(path)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,9 @@
 [ext_resource type="AudioStream" path="res://assets/sfx/click.wav" id="12_click"]
 [ext_resource type="AudioStream" path="res://assets/sfx/undo.wav" id="13_undo"]
 [ext_resource type="AudioStream" path="res://assets/sfx/hint.wav" id="14_hint"]
-[ext_resource type="AudioStream" path="res://assets/music/bgm_main.ogg" id="15_music"]
+[ext_resource type="AudioStream" path="res://assets/sfx/puff.wav" id="15_puff"]
+[ext_resource type="AudioStream" path="res://assets/sfx/heartbeat.wav" id="16_heartbeat"]
+[ext_resource type="AudioStream" path="res://assets/music/bgm_main.ogg" id="17_music"]
 
 [node name="Audio" type="Node"]
 process_mode = 3
@@ -85,7 +87,17 @@ stream = ExtResource("14_hint")
 volume_db = -7.0
 bus = &"SFX"
 
+[node name="Puff" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("15_puff")
+volume_db = -8.5
+bus = &"SFX"
+
+[node name="Heartbeat" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("16_heartbeat")
+volume_db = -3.5
+bus = &"SFX"
+
 [node name="Music" type="AudioStreamPlayer" parent="."]
-stream = ExtResource("15_music")
+stream = ExtResource("17_music")
 volume_db = -12.0
 bus = &"Music"

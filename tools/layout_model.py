@@ -9,6 +9,8 @@
     внутри экрана и не задевает кнопки и подпись; поле в альбоме не меньше портретного;
   - группа «поле + столбик» по центру; на 16:9 она занимает ≥ 70 % ширины (требование 1.10);
   - гистерезис: у порога раскладка не прыгает;
+  - сердца (20.1c): ряд сердец (HeartsBar, на месте «Отмены») не задевает плашку «Осталось блоков» ни на одном
+    языке и при любом числе сердец флага (1…FLAG_HEARTS_MAX); до трёх сердец — полного размера HEART;
   - победа (13.5b, STYLE 11): заголовок, поле и карточка с губой на экране, звёзды на кромке карточки не
     заходят на поле и заголовок, в альбоме поле на месте, заголовок и карточка в столбике; надписи окна
     («УРОВЕНЬ 300 ПРОЙДЕН!», шапка карточки, «+очки», «Всего очков», «ДАЛЕЕ», «Переиграть уровень»)
@@ -72,6 +74,18 @@ TOAST_TEXTS = [
     "Подсказка откроется после просмотра рекламы", "Так остальные блоки не поместятся",
 ]
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+# Сердца (20.1c): GameLayout.HEARTS_ROW_PORTRAIT / PILL_SIDE_GAP; ActionsBar.separation (game.tscn); HEART, GAP —
+# из scenes/game/hearts_bar.gd, FLAG_HEARTS_MAX — из autoload/ysdk.gd (читаем, чтобы не разошлись).
+HEARTS_ROW_PORTRAIT, PILL_SIDE_GAP, ACTIONS_SEP, PILL_CLEAR = 188.0, 14.0, 14.0, 8.0
+
+
+def _gd_const(rel, name):
+    m = re.search(r"^const %s\b[^=]*:?=\s*([\d.]+)" % name, (ROOT / rel).read_text(encoding="utf-8"), re.M)
+    return float(m.group(1))
+
+
+HEART, HEART_GAP = _gd_const("scenes/game/hearts_bar.gd", "HEART"), _gd_const("scenes/game/hearts_bar.gd", "GAP")
+FLAG_HEARTS_MAX = int(_gd_const("autoload/ysdk.gd", "FLAG_HEARTS_MAX"))
 
 
 def R(x, y, w, h):
@@ -92,6 +106,10 @@ def portrait(w, h):
         "board": R(x + 22, 160, 676, h - 564),
         "actions": R(x + 28, h - 390, 664, 100),
         "remaining": R(x + 138, h - 390, 444, 100),
+        # 20.1c: на уровнях с сердцами — между рядом сердец (28…216) и «Подсказкой» (596…692), x 230…582.
+        "remaining_hearts": R(x + 28 + HEARTS_ROW_PORTRAIT + PILL_SIDE_GAP, h - 390,
+                              664 - HEARTS_ROW_PORTRAIT - 96 - 2 * PILL_SIDE_GAP, 100),
+        "hearts_row": HEARTS_ROW_PORTRAIT,
         "tray": R(x + 24, h - 268, 672, 232),
         "shelf": R(x + 12, h - 280, 696, 256),
         "toast": R(x + (COLUMN - TOAST[0]) / 2, h - TOAST_BOTTOM[False] - TOAST[1], *TOAST),
@@ -116,6 +134,8 @@ def landscape(w, h):
         "top_bar": R(x, y + 48, SIDE_W, 100),
         "board": board,
         "remaining": R(x, y + 204, SIDE_W, 44),  # 44: строка Nunito 29 — 41 px (14.8e)
+        "remaining_hearts": R(x, y + 204, SIDE_W, 44),
+        "hearts_row": 0.0,
         "tray": R(x + 14, y + 276, 532, 792),
         "shelf": R(x, y + 262, SIDE_W, 820),
         "actions": R(x + 118, y + 1116, 324, 96),
@@ -183,20 +203,28 @@ def check(cond, msg):
 def check_screen(name, w, h, land):
     L = compute(w, h, land)
     tag = "%s %dx%d %s" % (name, w, h, "альбом" if land else "портрет")
-    keys = ["top_bar", "board", "remaining", "actions", "shelf"]
+    keys = ["top_bar", "board", "remaining", "actions", "shelf", "remaining_hearts"]
     for k in keys + ["tray", "toast"]:
         x, y, rw, rh = L[k]
         check(x >= EDGE - 1e-6 and y >= EDGE - 1e-6 and x + rw <= w - EDGE + 1e-6 and y + rh <= h - EDGE + 1e-6,
               "%s: %s %s вылезает за экран" % (tag, k, L[k]))
     for i, a in enumerate(keys):
         for b in keys[i + 1:]:
-            if {a, b} == {"remaining", "actions"} and not land:
+            if {a, b} == {"remaining", "remaining_hearts"}:
+                continue  # два места одной плашки: без сердец и с ними
+            if {a, b} in ({"remaining", "actions"}, {"remaining_hearts", "actions"}) and not land:
                 continue  # в портрете подпись стоит между кнопками внутри полосы ActionsBar
             check(not overlap(L[a], L[b]), "%s: %s и %s перекрываются" % (tag, a, b))
     if not land:  # подпись между кнопками: не задевает «Отмену» и «Подсказку» (по 96)
         ax, ay, aw, ah = L["actions"]
         rx, ry, rw, rh = L["remaining"]
         check(rx >= ax + 96 and rx + rw <= ax + aw - 96, "%s: «Осталось блоков» на кнопках" % tag)
+        rx, ry, rw, rh = L["remaining_hearts"]
+        check(rx >= ax + L["hearts_row"] + PILL_SIDE_GAP - 1e-6 and rx + rw <= ax + aw - BUTTON - PILL_SIDE_GAP + 1e-6,
+              "%s: место «Осталось блоков» на уровне с сердцами задевает ряд сердец или «Подсказку»" % tag)
+    else:
+        check(L["remaining_hearts"] == L["remaining"], "%s: в альбоме плашка с сердцами переехала" % tag)
+    check_hearts(tag, L)
     tray = L["tray"]
     pad = L["shelf_pad"]
     want = R(tray[0] - pad, tray[1] - pad, tray[2] + 2 * pad, tray[3] + 2 * pad)
@@ -222,6 +250,28 @@ def check_screen(name, w, h, land):
     check_win(tag, L, w, h)
     check_toast(tag, L)
     return L
+
+
+def hearts_row(L, n):
+    """HeartsBar в ActionsBar (HBox: HeartsBar тянется, справа «Подсказка» BUTTON через ACTIONS_SEP): сторона
+    сердца (HeartsBar.heart_size с row_max = hearts_row) и правый край ряда из n сердец, px экрана."""
+    ax, ay, aw, ah = L["actions"]
+    bar_w = aw - BUTTON - ACTIONS_SEP
+    w = min(bar_w, L["hearts_row"]) if L["hearts_row"] > 0 else bar_w
+    s = max(0.0, min(HEART, ah, (w - HEART_GAP * (n - 1)) / n))
+    return s, ax + n * s + (n - 1) * HEART_GAP
+
+
+def check_hearts(tag, L):
+    """Сердца (20.1c): до трёх — полного размера; ряд из любого числа сердец флага — в полосе ActionsBar, не на
+    «Подсказке». Что ряд не задевает плашку, проверяет check_header (там ширины текста)."""
+    ax, ay, aw, ah = L["actions"]
+    for n in range(1, FLAG_HEARTS_MAX + 1):
+        s, right = hearts_row(L, n)
+        if n <= 3:
+            check(abs(s - HEART) < 1e-6, "%s: сердец %d — сторона %.1f, а не %.0f" % (tag, n, s, HEART))
+        check(s >= HEART * 0.5, "%s: сердец %d — сторона %.1f (мельче половины)" % (tag, n, s))
+        check(right <= ax + aw - BUTTON - ACTIONS_SEP + 1e-6, "%s: сердец %d до x %.0f — на «Подсказке»" % (tag, n, right))
 
 
 def texts(msgid):
@@ -296,6 +346,14 @@ def check_header(tag, L, w, h):
         if not land:
             ax, ay, aw, ah = L["actions"]
             check(rx + (rw - pw) / 2 >= ax + BUTTON + 8 and ry + (rh - ph) / 2 >= ay, "%s: плашка «%s» задевает кнопки" % (tag, s))
+            # 20.1c: на уровне с сердцами плашка — в remaining_hearts, слева от неё ряд сердец (любого числа).
+            hx, hy, hw, hh = L["remaining_hearts"]
+            left, right = hx + (hw - pw) / 2, hx + (hw + pw) / 2
+            check(pw <= hw, "%s: плашка «%s» %.0f шире места с сердцами %.0f" % (tag, s, pw, hw))
+            for n in range(1, FLAG_HEARTS_MAX + 1):
+                check(hearts_row(L, n)[1] + PILL_CLEAR <= left, "%s: сердец %d до x %.0f, плашка «%s» с %.0f" % (
+                    tag, n, hearts_row(L, n)[1], s, left))
+            check(right + PILL_CLEAR <= ax + aw - BUTTON, "%s: плашка «%s» до x %.0f — на «Подсказке»" % (tag, s, right))
         else:
             sh = L["shelf"]
             check(ry + rh / 2 + PILL_TEXT_RISE + ph / 2 <= sh[1] - 4, "%s: плашка «%s» налезает на полку" % (tag, s))

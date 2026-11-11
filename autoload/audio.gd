@@ -22,9 +22,12 @@ const CLICK := &"Click"
 const UNDO := &"Undo"
 const STAR := &"Star"
 const HINT := &"Hint"
+## Сердца (20.1c): сердце догорело — мягкий «пуф»; осталось последнее — тихий удар сердца «тук-тук».
+const PUFF := &"Puff"
+const HEARTBEAT := &"Heartbeat"
 ## Все звуки: у каждого — узел audio.tscn с этим именем (selftest и check_gd сверяют).
 const SOUNDS: Array[StringName] = [PICK, PLACE, NOTE, ROTATE, MISS, ERROR, LINE, WIN, JINGLE, CLICK, UNDO, STAR,
-		HINT]
+		HINT, PUFF, HEARTBEAT]
 ## Голосов у звука (кому не указано — DEFAULT_VOICES). У голоса своя высота: хвост прошлой ноты не меняет высоту,
 ## когда звучит следующая (pitch_scale плеера действует на всё, что он играет). Звук берёт свободный голос,
 ## а если все заняты — тот, что звучит дольше всех.

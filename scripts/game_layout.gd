@@ -1,8 +1,8 @@
 class_name GameLayout
 extends RefCounted
 ## Две раскладки игрового экрана (docs/STYLE.md, раздел 10; docs/DESKTOP.md).
-##   Портрет — столбик COLUMN по центру: панель, поле, кнопки с «Осталось блоков», лоток
-##     из трёх гнёзд в ряд (места как в game.tscn).
+##   Портрет — столбик COLUMN по центру: панель, поле, полоса действий (сердца на месте «Отмены», «Осталось
+##     блоков», «Подсказка»), лоток из трёх гнёзд в ряд (места как в game.tscn).
 ##   Альбом — поле слева квадратом S, справа столбик SIDE_W: панель, «Осталось блоков»,
 ##     лоток из трёх гнёзд сверху вниз, сердца (20.1a, на месте «Отмены») и «Подсказка», подпись про поворот.
 ##     Группа «поле + столбик» стоит по центру экрана; S растёт с шириной до BOARD_MAX.
@@ -65,6 +65,15 @@ const TOAST_BOTTOM_PORTRAIT := 414.0
 const TOAST_BOTTOM_LANDSCAPE := 66.0
 const WIN_BOARD_SCALE := 1.0
 
+## Портрет (20.1c): ряд сердец слева в полосе действий не шире HEARTS_ROW_PORTRAIT — три сердца HeartsBar
+## полного размера (больше сердец — мельче, HeartsBar.row_max). На уровнях с сердцами плашка «Осталось блоков» —
+## по центру места между этим рядом и «Подсказкой» (remaining_hearts; иначе плашка «Осталось блоков: 12» в 324 px
+## налезала на третье сердце), без сердец — по центру экрана, как раньше (remaining). Альбом: плашка над лотком,
+## сердца ей не мешают — remaining_hearts = remaining, ряд — на всю полосу (hearts_row 0).
+const HEARTS_ROW_PORTRAIT := 188.0  # HeartsBar.row_size(3).x = 3·56 + 2·10
+## Отступ плашки «Осталось блоков» (её места remaining_hearts) от ряда сердец и от «Подсказки», px.
+const PILL_SIDE_GAP := 14.0
+
 ## Последний выбранный режим: следующая сцена начинает с него (гистерезис между сценами).
 static var last_landscape: bool = false
 
@@ -81,6 +90,8 @@ static func pick(screen: Vector2, was: bool) -> bool:
 ##   со всех сторон, рисует Tray), toast (место сообщения: Toast.place),
 ##   slot (размер гнезда), separation (между гнёздами), shelf_pad, vertical (лоток сверху вниз),
 ##   board_scale (наибольший масштаб поля), tray_scale (масштаб блока в лотке), landscape;
+##   сердца (20.1c): remaining_hearts (место «Осталось блоков» на уровнях с сердцами), hearts_row
+##   (HeartsBar.row_max: наибольшая ширина ряда сердец, 0 — вся полоса);
 ##   победа (13.5b): win_title (строка заголовка; в альбоме — на две строки), win_title_size,
 ##   win_board (куда переезжает поле), win_board_scale, win_card (лицо карточки без губы).
 static func compute(screen: Vector2, landscape: bool) -> Dictionary:
@@ -96,6 +107,10 @@ static func _portrait(screen: Vector2) -> Dictionary:
 		"board": Rect2(x + 22.0, 160.0, 676.0, h - 564.0),
 		"actions": Rect2(x + 28.0, h - 390.0, 664.0, 100.0),
 		"remaining": Rect2(x + 138.0, h - 390.0, 444.0, 100.0),
+		# x 230…582: ряд сердец 28…216 + PILL_SIDE_GAP, «Подсказка» 596…692 − PILL_SIDE_GAP; центр 406.
+		"remaining_hearts": Rect2(x + 28.0 + HEARTS_ROW_PORTRAIT + PILL_SIDE_GAP, h - 390.0,
+				664.0 - HEARTS_ROW_PORTRAIT - 96.0 - 2.0 * PILL_SIDE_GAP, 100.0),
+		"hearts_row": HEARTS_ROW_PORTRAIT,
 		"tray": Rect2(x + 24.0, h - 268.0, 672.0, 232.0),
 		"shelf": Rect2(x + 12.0, h - 280.0, 696.0, 256.0),
 		"toast": Rect2(Vector2(x + (COLUMN - TOAST.x) * 0.5, h - TOAST_BOTTOM_PORTRAIT - TOAST.y), TOAST),
@@ -131,6 +146,8 @@ static func _landscape(screen: Vector2) -> Dictionary:
 		"top_bar": Rect2(x, y + 48.0, SIDE_W, 100.0),
 		"board": board,
 		"remaining": Rect2(x, y + 204.0, SIDE_W, 44.0),  # 44: строка Nunito 29 — 41 px (14.8e)
+		"remaining_hearts": Rect2(x, y + 204.0, SIDE_W, 44.0),
+		"hearts_row": 0.0,
 		"tray": Rect2(x + 14.0, y + 276.0, 532.0, 792.0),
 		"shelf": Rect2(x, y + 262.0, SIDE_W, 820.0),
 		"actions": Rect2(x + 118.0, y + 1116.0, 324.0, 96.0),

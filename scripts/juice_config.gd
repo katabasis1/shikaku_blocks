@@ -252,6 +252,22 @@ func star_pitch(index: int) -> float:
 ## Ореол гнёзд той же площади пульсирует с частотой pulse_freq, Гц (при «Меньше движения» — нет).
 @export var pulse_freq := 1.4
 
+@export_group("Сердца")
+## Сгорание сердца (20.1c, HeartsBar, STYLE 17): сердце ещё heart_burn_delay, с, целое — ждёт трещины ошибочного
+## блока (Game.MISTAKE_WARN, 0,45 с после хода); за heart_crack_time, с, по нему бежит трещина; «пуф» — раздувается
+## до ×heart_puff_scale и тает за heart_puff_time, с, искр heart_puff_sparks (SPARKS, цвет сердца).
+@export var heart_burn_delay := 0.45
+@export var heart_crack_time := 0.18
+@export var heart_puff_scale := 1.35
+@export var heart_puff_time := 0.28
+@export var heart_puff_sparks := 10
+## Последнее из нескольких сердец бьётся «тук-тук» (HeartsBar.BEAT_AT): масштаб до ×(1 + heart_beat) раз
+## в heart_beat_period, с (≈ 55 ударов в минуту — спокойно, не тревога).
+@export var heart_beat := 0.12
+@export var heart_beat_period := 1.1
+## Возрождение: сердце вырастает из ×0 с дожимом за heart_pop_time, с.
+@export var heart_pop_time := 0.35
+
 @export_group("Меньше движения")
 ## Доля частиц при «Меньше движения» (STYLE 12: конфетти вдвое меньше). Тряски, наклона, пружины несомого
 ## блока, «мотания головой» и пульса ореола нет.
@@ -260,8 +276,9 @@ func star_pitch(index: int) -> float:
 ## победы нет «штампа» (просто проявляются), блоки на победе не подпрыгивают, карточка не вздрагивает.
 ## Появление и переходы (14.6): числа и блоки лотка просто проявляются, без прыжка и выезда; шторка — ровное
 ## затемнение; кнопки отпускаются без перелёта; лоток в простое не дышит.
-## Тупик и подсказка (14.6g): трещина — сразу целиком, кнопка отмены пульсирует (без прыжков); у подсказки нет
-## искры и паузы — блок сразу вплывает на место.
+## Тупик и подсказка (14.6g): трещина — сразу целиком; у подсказки нет искры и паузы — блок сразу вплывает на место.
+## Сердца (20.1c): трещина сразу, сердце гаснет без раздувания и искр, возрождённое проявляется без роста, последнее
+## не бьётся.
 @export var reduced_wave := 0.4
 
 @export_group("Качество")
@@ -339,6 +356,9 @@ const OFF := {
 	&"dead_hop": 0.0, &"dead_hop_time": 0.0, &"hint_float_time": 0.0,
 	# Магнит
 	&"pulse_freq": 0.0,
+	# Сердца
+	&"heart_burn_delay": 0.0, &"heart_crack_time": 0.0, &"heart_puff_scale": 1.0, &"heart_puff_time": 0.0,
+	&"heart_puff_sparks": 0, &"heart_beat": 0.0, &"heart_pop_time": 0.0,
 }
 
 ## Числа, которые «без эффектов» не трогает: без силы эффекта они ничего не меняют, а 0 сломал бы игру.
@@ -355,8 +375,8 @@ const KEEP_ON_OFF: Array[StringName] = [
 	&"win_mosaic", &"line_wave_width", &"win_wave_width", &"win_merge_gap", &"win_merge_radius",
 	&"curtain_cell", &"curtain_radius",
 	&"curtain_spread",
-	# Дыхание лотка: период — делитель, фаза — сдвиг (размах 0 — дыхания нет).
-	&"idle_period", &"idle_phase",
+	# Дыхание лотка: период — делитель, фаза — сдвиг (размах 0 — дыхания нет). Биение сердца — так же.
+	&"idle_period", &"idle_phase", &"heart_beat_period",
 	# «Меньше движения» и «Качество» — свои режимы.
 	&"reduced_particles", &"reduced_wave",
 	&"quality_fps", &"quality_fps_good", &"quality_window", &"quality_bad_windows", &"quality_warmup",

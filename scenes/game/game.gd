@@ -42,8 +42,11 @@ const WIN_SLIDE_SIDE := 160.0
 ## Окно победы — через столько секунд после последнего хода (14.5: удар победы — в миг касания последнего блока,
 ## через JuiceConfig.land_time; затем hit-stop, волна по полю и мозаика — к окну они доиграли).
 const WIN_SHOW_AT := 1.15
-## Ошибка (20.1a): неверный блок возвращается в гнездо через столько секунд после хода — после трещины (0,45 с
-## предупреждение + JuiceConfig.dead_crack_time). Начальное значение: игрок должен успеть увидеть трещину. Если на
+## Ошибка (20.1a): через MISTAKE_WARN с после хода неверный блок трескается (_play_dead_end) — в тот же миг
+## трескается и сгоревшее сердце (JuiceConfig.heart_burn_delay — столько же, 20.1c).
+const MISTAKE_WARN := 0.45
+## Неверный блок возвращается в гнездо через столько секунд после хода — после трещины (MISTAKE_WARN
+## + JuiceConfig.dead_crack_time). Начальное значение: игрок должен успеть увидеть трещину. Если на
 ## пробе блок «пропадает раньше, чем понял, что не так» — +0,2 с; если ждут его, чтобы ходить дальше, — −0,2 с.
 const MISTAKE_RETURN := 0.9
 
@@ -149,6 +152,8 @@ func _ready() -> void:
 	hearts_panel.continue_pressed.connect(_on_hearts_continue)
 	hearts_panel.restart_pressed.connect(_on_restart_pressed)
 	hearts_panel.home_pressed.connect(_on_home_pressed)
+	hearts_bar.puffed.connect(_on_heart_puffed)
+	hearts_bar.last_heart.connect(_on_last_heart)
 	restart_button.pressed.connect(_on_restart_pressed)
 	win_panel.next_pressed.connect(_on_next_pressed)
 	win_panel.replay_pressed.connect(_on_replay_pressed)
@@ -276,7 +281,8 @@ func apply_layout(screen: Vector2) -> void:
 	_place(top_bar, layout.top_bar)
 	_place(board_area, layout.board)
 	_place(actions_bar, layout.actions)
-	_place(remaining_label, layout.remaining)
+	_place(remaining_label, remaining_rect())
+	hearts_bar.row_max = layout.hearts_row
 	remaining_label.add_theme_font_size_override(&"font_size", layout.remaining_size)
 	header.configure(layout.title_size, layout.score_size, layout.title_y, layout.score_y)
 	# Сначала гнёзда нового размера, потом рамка лотка: иначе прежний наименьший размер
@@ -290,6 +296,13 @@ func apply_layout(screen: Vector2) -> void:
 	if landscape != was:
 		drag.cancel()  # лоток переехал — несомый блок вернётся в свой слот
 	coach.on_layout_changed()
+
+
+## Место плашки «Осталось блоков»: на уровне с сердцами — layout.remaining_hearts (в портрете — правее, между
+## сердцами и «Подсказкой»), без них — layout.remaining. Ставят apply_layout и _apply_win (новый уровень — через
+## _reset_win, после hearts.reset).
+func remaining_rect() -> Rect2:
+	return layout.remaining_hearts if hearts.is_limited() else layout.remaining
 
 
 func _on_resized() -> void:
@@ -534,8 +547,9 @@ func has_mistake() -> bool:
 
 ## Ошибка (20.1a): блок b из гнезда i лёг на место r, после которого поле не заполнить. Сердце сгорает сразу —
 ## в кадре хода (14.8: эффекты логику не держат); ход не засчитан: ни очков, ни линий, гнездо остаётся пустым,
-## серии обнуляются. Блок ложится (удар, «нота»), через 0,45 с предупреждение — тряска и красный, затем трещина,
-## звук ошибки и темнота поля (_play_dead_end), через MISTAKE_RETURN — сам обратно в гнездо (_return_mistake).
+## серии обнуляются. Блок ложится (удар, «нота»), через MISTAKE_WARN с предупреждение — тряска и красный, затем
+## трещина, звук ошибки и темнота поля (_play_dead_end), через MISTAKE_RETURN — сам обратно в гнездо
+## (_return_mistake). Сердце на полосе (HeartsBar, 20.1c) гаснет само: трещина в миг трещины блока, затем «пуф».
 ## Подпись объясняет причину. Последнее сердце — поле стоит (_on_hearts_out) после возврата блока.
 func _on_mistake(b: Block, i: int, r: Rect2i) -> void:
 	coach.postpone()
@@ -547,19 +561,19 @@ func _on_mistake(b: Block, i: int, r: Rect2i) -> void:
 	Analytics.run_dead_end()
 	_reset_note_streak()
 	line_streak = 0
-	b.warn(0.45)
+	b.warn(MISTAKE_WARN)
 	var t := create_tween()
-	t.tween_interval(0.45)
+	t.tween_interval(MISTAKE_WARN)
 	t.tween_callback(_play_dead_end.bind(b, session))
-	t.tween_interval(maxf(MISTAKE_RETURN - 0.45, 0.0))
+	t.tween_interval(maxf(MISTAKE_RETURN - MISTAKE_WARN, 0.0))
 	t.tween_callback(_return_mistake.bind(b, session))
 	toast.show_text(tr("Так остальные блоки не поместятся"), 2.5)
 	update_hud()
 
 
-## Тупик (14.6g), в миг предупреждения неверного блока (0,45 с после хода — он уже лёг): звук ошибки, поле на миг
-## темнеет, блок трескается, сердца вздрагивают. Блок уже вернулся (нажатие на лоток, подсказка) или уровень
-## сменился — ничего.
+## Тупик (14.6g), в миг предупреждения неверного блока (MISTAKE_WARN после хода — он уже лёг): звук ошибки, поле
+## на миг темнеет, блок трескается (сердце трескается само — HeartsBar; полоса больше не вздрагивает, 20.1c). Блок
+## уже вернулся (нажатие на лоток, подсказка) или уровень сменился — ничего.
 func _play_dead_end(placed: Block, at_session: int) -> void:
 	if at_session != session or _mistake.get("block") != placed or not is_instance_valid(placed) \
 			or placed.get_parent() != board.blocks_root:
@@ -567,7 +581,6 @@ func _play_dead_end(placed: Block, at_session: int) -> void:
 	Audio.play(Audio.ERROR, 0.0, 1.0)
 	board.dim_flash()
 	placed.crack()
-	Fx.hop(hearts_bar)
 
 
 ## Таймер ошибки: блок placed всё ещё на поле — вернуть его в гнездо.
@@ -663,12 +676,25 @@ func _revive_from_panel(free: bool) -> void:
 
 ## Возрождение: +1 сердце, поле как есть; звёзд за уровень — 1. free — бесплатное продолжение (реклама не
 ## показалась). false — сейчас нельзя (сердца не кончились или возрождения исчерпаны). Окно — _revive_from_panel.
+## Вернувшееся сердце на полосе вырастает (HeartsBar.pop, 20.1c).
 func revive(free := false) -> bool:
 	if finished or not hearts.try_revive(YSDK.revive_max(), free, YSDK.revive_free_on_fail()):
 		return false
 	toast.dismiss()
 	update_hud()
+	hearts_bar.pop()
 	return true
+
+
+## Сердце на полосе догорело — «пуф» (HeartsBar.puffed, 20.1c): мягкий звук, не наказывающий (ошибку уже
+## озвучил Error в миг трещины).
+func _on_heart_puffed(_index: int) -> void:
+	Audio.play(Audio.PUFF)
+
+
+## Осталось последнее сердце из нескольких — оно забилось (HeartsBar.last_heart, раз): тихий удар сердца.
+func _on_last_heart() -> void:
+	Audio.play(Audio.HEARTBEAT, 0.0)
 
 
 # --- Решатель -------------------------------------------------------------------
@@ -790,8 +816,10 @@ func _apply_win() -> void:
 	var pt := win_panels_t
 	var up := Vector2(WIN_SLIDE_SIDE, 0.0) if landscape else Vector2(0.0, -WIN_SLIDE_TOP)
 	var down := Vector2(WIN_SLIDE_SIDE, 0.0) if landscape else Vector2(0.0, WIN_SLIDE_BOTTOM)
+	var rem := remaining_rect()
+	remaining_label.size = rem.size  # между уровнями с сердцами и без место плашки меняется
 	var panels: Array = [[top_bar, layout.top_bar, up], [actions_bar, layout.actions, down],
-			[remaining_label, layout.remaining, down], [tray, layout.tray, down]]
+			[remaining_label, rem, down], [tray, layout.tray, down]]
 	for item: Array in panels:
 		var c: Control = item[0]
 		var r: Rect2 = item[1]

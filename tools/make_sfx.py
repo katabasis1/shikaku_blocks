@@ -465,10 +465,49 @@ def make_hint():
     return finish(room(out + swirl + glints + air, 0.2, 0.25), -4.0, fade_ms=100)
 
 
+def make_puff():
+    """Сердце догорело (20.1c, HeartsBar «пуф»): мягкий «пуф» — выдох облачка (воздух, полоса вниз),
+    лопнувшая плёнка «поп» и пара тихих искр. Не наказывает: ни ноты вниз, ни гула — ошибку уже озвучил Error
+    в миг трещины (за heart_crack_time до «пуфа»)."""
+    r = rng("puff")
+    dur = 0.3
+    t = t_axis(dur)
+    n = noise("puff", len(t))
+    breath = bandpass(n, 400, 1500, 3) * env(t, 0.006, 0.05) + 0.6 * bandpass(n, 200, 700) * env(t, 0.012, 0.09)
+    breath *= 1 + 0.35 * smooth_random(r, len(t), 50)
+    breath = breath / (np.abs(breath).max() + 1e-12)
+    pop = jelly(t, glide(t, 520, 280, 0.05) * wobble(t, 21, 0.05, 0.04), 0.002, 0.03, r, 0.6)
+    glints = fizz("puff", dur, 0.025, 0.03, 4, 1400, 2400) * 0.05
+    return finish(room(0.6 * breath + 0.5 * pop + glints, 0.1, 0.12), -5.0, fade_ms=40, lp=3500.0)
+
+
+## Биение последнего сердца (HeartsBar.BEAT_AT, BEAT_POWER): удары звука Heartbeat — в те же мгновения и той же силы.
+_HEARTS_BAR = open(os.path.join(ROOT, "scenes", "game", "hearts_bar.gd"), encoding="utf-8").read()
+BEAT_AT, BEAT_POWER = ([float(v) for v in re.search(r"const %s: Array\[float\] = \[([^\]]*)\]" % name,
+                                                    _HEARTS_BAR).group(1).split(",")]
+                       for name in ("BEAT_AT", "BEAT_POWER"))
+
+
+def make_heartbeat():
+    """Последнее сердце (20.1c): тихий удар сердца «тук-тук» — мягкое глухое желе вниз и приглушённый «ток» (его
+    и слышно в телефоне: динамик не берёт ниже 300 Гц), удары — BEAT_AT силой BEAT_POWER. Звучит раз, когда
+    последнее сердце забилось; не тревога — тише постановки."""
+    r = rng("heartbeat")
+    dur = BEAT_AT[-1] + 0.3
+    out = silence(dur)
+    tt = t_axis(0.28)
+    for k, (at, power) in enumerate(zip(BEAT_AT, BEAT_POWER)):
+        f = glide(tt, 150, 85, 0.06)
+        thump = jelly(tt, f, 0.004, 0.07, r, 1.6)
+        tok = lowpass(wood(tt, glide(tt, 330, 240, 0.03), 0.03, r), 900) * 0.8
+        place_at(out, power * (thump + tok), at)
+    return finish(room(lowpass(out, 1400), 0.06, 0.12), -6.0, fade_ms=40, hp=40.0, lp=1400.0)
+
+
 SOUNDS = {
     "pick": make_pick, "place": make_place, "note": make_note, "rotate": make_rotate, "miss": make_miss,
     "error": make_error, "line": make_line, "win": make_win, "jingle": make_jingle, "star": make_star,
-    "click": make_click, "undo": make_undo, "hint": make_hint,
+    "click": make_click, "undo": make_undo, "hint": make_hint, "puff": make_puff, "heartbeat": make_heartbeat,
 }
 
 
@@ -487,6 +526,7 @@ TARGET = {
     "click": -25, "pick": -25, "rotate": -26, "miss": -25,
     "place": -24, "note": -22, "undo": -22, "error": -22, "hint": -21,
     "line": -18, "star": -18, "jingle": -17, "win": -16,
+    "puff": -25, "heartbeat": -27,
 }
 MUSIC_DB = -12.0
 SCENE = os.path.join(ROOT, "autoload", "audio.tscn")
