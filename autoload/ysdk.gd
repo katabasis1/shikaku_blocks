@@ -263,10 +263,6 @@ var _gameplay_wanted: bool = false
 var _gameplay_active: bool = false
 var _suspend: Dictionary = {}  # причины паузы геймплея: реклама, пауза платформы, скрытая вкладка
 var _last_interstitial_ms: int = 0
-## Итог последней рекламы (ad_result или "timeout"; "not_shown" — и когда показать было нельзя: нет SDK, уже идёт
-## реклама). Колбэк rewarded получает только «награда да / нет», а возрождению (20.1b) важно, почему нет: закрыл
-## до награды («closed») или реклама не показалась (бесплатное продолжение, флаг revive_free_on_fail).
-var last_ad_result: String = ""
 var interstitial_from_level: int = DEFAULT_INTERSTITIAL_FROM_LEVEL
 var interstitial_interval_ms: int = DEFAULT_INTERSTITIAL_INTERVAL_MS
 var _free_hints: int = DEFAULT_FREE_HINTS_PER_LEVEL
@@ -370,7 +366,6 @@ func show_interstitial(on_done: Callable) -> void:
 ## Реклама за награду. on_done(rewarded: bool) вызывается всегда.
 func show_rewarded(on_done: Callable) -> void:
 	if not is_available or _ad_kind != AD_NONE:
-		last_ad_result = "not_shown"
 		on_done.call_deferred(false)
 		return
 	_start_ad(AD_REWARDED, on_done)
@@ -402,7 +397,6 @@ func _finish_ad(result: String = "", shown: bool = true) -> void:
 		return
 	if result.is_empty():
 		result = ad_result(kind, _ad_opened and shown, rewarded)
-	last_ad_result = result
 	Analytics.ad(kind, result)
 	if not cb.is_valid():
 		return

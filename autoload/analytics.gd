@@ -12,9 +12,8 @@ extends Node
 ##
 ## Попытка — от начала уровня до итога: level_win (победа), level_exit (ушёл в меню, на карту, закрыл сцену) или
 ## level_restart («Заново» посреди уровня; «Заново» из окна победы — уже не попытка). Внутри попытки: first_move
-## (первый свой ход, через сколько секунд), dead_end — первый тупик попытки (сколько всего — в итоге),
-## hint — каждая (бесплатная или за рекламу). Сердца (20.1): heart_lost — каждое сгоревшее (сколько осталось),
-## hearts_out — сердца кончились, revive — каждое нажатие «ПРОДОЛЖИТЬ» в окне «Сердца закончились» (чем кончилось). Ежедневная задача — цели daily_start / daily_win / daily_exit /
+## (первый свой ход, через сколько секунд), dead_end и undo — по разу за попытку (сколько всего — в итоге),
+## hint — каждая (бесплатная или за рекламу). Ежедневная задача — цели daily_start / daily_win / daily_exit /
 ## daily_restart, ключ "day" вместо номера уровня. «Лаборатория» (отладка) не считается.
 
 ## Границы интервалов секунд (span): "0-3", "3-5", …, "120-300", "300+". Те же — в web/shell.html (SPAN_EDGES),
@@ -43,6 +42,7 @@ var _js = null  # JavaScriptObject window.ShikakuMetrika (только в веб
 var _ready_sent: bool = false
 var _run_start_ms: int = 0
 var _first_move: bool = false
+var _undos: int = 0
 var _dead_ends: int = 0
 var _hints: int = 0
 
@@ -119,6 +119,7 @@ func run_start(n: int, daily: bool, replay: bool) -> void:
 	run_key = DAILY_KEY if daily else level_key(n)
 	_run_start_ms = Time.get_ticks_msec()
 	_first_move = false
+	_undos = 0
 	_dead_ends = 0
 	_hints = 0
 	_run_goal("start", "replay" if replay else "new")
@@ -141,29 +142,13 @@ func run_dead_end() -> void:
 		goal("dead_end", {"dead_end": {run_key: 1}})
 
 
-## Сердце сгорело (20.1a): heart_lost — каждое, со значением «сколько осталось»: {"heart_lost": {"L0012": 2}} —
-## в отчёте видно, на каком сердце уровня игроки ошибаются. Без предела сердец (уровни 1–3, флаг hearts = 0) не
-## шлётся: ошибки и так считает dead_end.
-func run_heart_lost(left: int) -> void:
+## Отмена хода: undo — первая за попытку, число — в итоге.
+func run_undo() -> void:
 	if run_key.is_empty():
 		return
-	goal("heart_lost", {"heart_lost": {run_key: left}})
-
-
-## Сердца кончились (20.1b): окно «Сердца закончились» открылось.
-func run_hearts_out() -> void:
-	if run_key.is_empty():
-		return
-	goal("hearts_out", {"hearts_out": {run_key: 1}})
-
-
-## «ПРОДОЛЖИТЬ» в окне «Сердца закончились» (20.1b): result — "rewarded" (досмотрел, +1 сердце), "closed" (закрыл
-## рекламу до награды, окно осталось), "not_shown" (реклама не показалась, бесплатного продолжения нет), "free"
-## (бесплатное продолжение: реклама не показалась или её нет на платформе).
-func run_revive(result: String) -> void:
-	if run_key.is_empty():
-		return
-	goal("revive", {"revive": {run_key: result}})
+	_undos += 1
+	if _undos == 1:
+		goal("undo", {"undo": {run_key: 1}})
 
 
 ## Подсказка (поставила блок или откатила тупик): каждая; paid — после рекламы за награду.
@@ -174,27 +159,22 @@ func run_hint(paid: bool) -> void:
 	goal("hint", {"hint": {run_key: "ad" if paid else "free"}})
 
 
-## Победа: level_win (daily_win) — звёзды, время, сердца, подсказки, тупики; extra — добавить (серия дня).
-## hearts — сколько сердец осталось (20.1e, вместо прежнего undo): число или "off" (без предела); null — не писать.
-func run_win(stars: int, extra: Dictionary = {}, hearts: Variant = null) -> void:
+## Победа: level_win (daily_win) — звёзды, время, отмены, подсказки, тупики; extra — добавить (серия дня).
+func run_win(stars: int, extra: Dictionary = {}) -> void:
 	if run_key.is_empty():
 		return
-	var info := {"stars": stars, "time": span(_run_seconds()), "hint": _hints, "dead": _dead_ends}
-	if hearts != null:
-		info["hearts"] = hearts
+	var info := {"stars": stars, "time": span(_run_seconds()), "undo": _undos, "hint": _hints, "dead": _dead_ends}
 	info.merge(extra)
 	_run_goal("win", info)
 	run_key = ""
 
 
 ## Попытка закончилась без победы: reason — &"exit" (ушёл) или &"restart" («Заново»); placed из total блоков
-## на поле (-1 — неизвестно), hearts — сердец осталось (как у run_win; null — неизвестно). Попытки нет — ничего.
-func run_end(reason: StringName, placed: int, total: int, hearts: Variant = null) -> void:
+## на поле (-1 — неизвестно). Попытки нет — ничего.
+func run_end(reason: StringName, placed: int, total: int) -> void:
 	if run_key.is_empty():
 		return
-	var info := {"time": span(_run_seconds()), "hint": _hints, "dead": _dead_ends}
-	if hearts != null:
-		info["hearts"] = hearts
+	var info := {"time": span(_run_seconds()), "undo": _undos, "hint": _hints, "dead": _dead_ends}
 	if placed >= 0 and total > 0:
 		info["placed"] = "%d/%d" % [placed, total]
 	_run_goal(String(reason), info)

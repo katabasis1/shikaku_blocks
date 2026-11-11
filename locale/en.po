@@ -21,29 +21,8 @@ msgstr "Super!"
 msgid "Невероятно!"
 msgstr "Incredible!"
 
-msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
-msgstr "OUT OF HEARTS"
-
-msgid "Продолжи с этого места или начни уровень заново"
-msgstr "Continue from here or start the level over"
-
-msgid "Начни уровень заново — ты уже знаешь, где ловушка"
-msgstr "Start the level over — now you know where the trap is"
-
-msgid "+1 СЕРДЦЕ"
-msgstr "+1 HEART"
-
-msgid "ЗАНОВО"
-msgstr "RESTART"
-
-msgid "Начать заново"
-msgstr "Start over"
-
-msgid "Сердце дают, если досмотреть рекламу до конца"
-msgstr "Watch the ad to the end to get a heart"
-
-msgid "Реклама не загрузилась — попробуй ещё раз"
-msgstr "The ad didn't load — try again"
+msgid "Сердца кончились — начни заново"
+msgstr "Out of hearts — start over"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "Watch the ad to unlock the hint"

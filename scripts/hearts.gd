@@ -79,6 +79,15 @@ func revive(free := false) -> void:
 	left += 1
 
 
+## Возрождение, если можно (Game.revive): сердца кончились и возрождений меньше revive_max (флаг), а бесплатное
+## (free) — ещё и флаг allow_free и бесплатного на попытке не было. true — сердце дано.
+func try_revive(revive_max: int, free: bool, allow_free: bool) -> bool:
+	if not can_revive(revive_max) or (free and not can_continue_free(allow_free)):
+		return false
+	revive(free)
+	return true
+
+
 ## Звёзды за победу: после возрождения — 1, иначе 3 − ошибки − подсказки (hints_used), не ниже 1.
 func stars(hints_used: int) -> int:
 	if revives > 0:

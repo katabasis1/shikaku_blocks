@@ -44,12 +44,11 @@ show hide rotation pivot_offset custom_minimum_size create_tween get_tree is_ins
 z_index mouse_filter get_global_rect get_rect self_modulate emit connect name get_children get_child
 get_child_count is_queued_for_deletion move_to_front material has_method call_deferred text is_node_ready
 offset_left offset_top offset_right offset_bottom set_process get_node_or_null disconnect is_connected
-process_mode get_viewport_rect get_global_transform vertical get_script add_theme_font_size_override remove_theme_font_size_override
+process_mode get_viewport_rect get_global_transform vertical get_script add_theme_font_size_override
 get_theme_font_size get_theme_font atr tr add_theme_color_override add_theme_constant_override get_theme_color
 get_theme_constant texture pressed disabled toggled button_pressed tooltip_text set_anchors_and_offsets_preset
 resized minimum_size_changed get_combined_minimum_size icon theme_type_variation get_instance_id
-find_children get_path_to queue_redraw texture_filter is_visible_in_tree toggle_mode set_pressed_no_signal get_node
-add_theme_stylebox_override focus_mode auto_translate_mode
+find_children get_path_to queue_redraw texture_filter
 """.split())
 
 
@@ -401,18 +400,6 @@ for srel, info in scripts.items():
                  for a in re.finditer(r"(\w+)\s*:\s*([A-Z]\w*)", m.group(1)) if a.group(2) in by_class}
         local.update({a.group(1): by_class[a.group(2)]
                       for a in re.finditer(r"\bvar\s+(\w+)\s*:\s*([A-Z]\w*)", code[m.start():end]) if a.group(2) in by_class})
-        # var g := ps.instantiate() as Game, var h := Hearts.new(), for b: Block in ... — тип тоже известен
-        # (20.1a, 08.11: game._on_undo_pressed() на «var game := ... as Game» check_gd не видел, а Godot не грузит
-        # такой скрипт целиком)
-        local.update({a.group(1): by_class[a.group(2)]
-                      for a in re.finditer(r"\bvar\s+(\w+)\s*:=[^\n]*\bas\s+([A-Z]\w*)[ \t]*$", code[m.start():end], re.M)
-                      if a.group(2) in by_class})
-        local.update({a.group(1): by_class[a.group(2)]
-                      for a in re.finditer(r"\bvar\s+(\w+)\s*:=\s*([A-Z]\w*)\.new\(", code[m.start():end])
-                      if a.group(2) in by_class})
-        local.update({a.group(1): by_class[a.group(2)]
-                      for a in re.finditer(r"\bfor\s+(\w+)\s*:\s*([A-Z]\w*)\s+in\b", code[m.start():end])
-                      if a.group(2) in by_class})
         # var g := _game — тип берётся у переменной справа
         for a in re.finditer(r"\bvar\s+(\w+)\s*:=\s*(\w+)[ \t]*$", code[m.start():end], re.M):
             src_t = local.get(a.group(2)) or fields.get(a.group(2))
@@ -751,9 +738,7 @@ NATIVE_METHODS = {
                "get_parent_control get_screen_position get_parent_area_size get_theme_color get_theme_constant "
                "get_theme_font get_theme_font_size get_theme_icon get_theme_stylebox add_theme_color_override "
                "add_theme_constant_override add_theme_font_override add_theme_font_size_override "
-               "add_theme_icon_override add_theme_stylebox_override remove_theme_color_override "
-               "remove_theme_constant_override remove_theme_font_override remove_theme_font_size_override "
-               "remove_theme_stylebox_override begin_bulk_theme_override "
+               "add_theme_icon_override add_theme_stylebox_override begin_bulk_theme_override "
                "end_bulk_theme_override is_layout_rtl find_next_valid_focus find_prev_valid_focus",
     "Label": "get_line_count get_visible_line_count get_line_height get_total_character_count",
     "BaseButton": "is_pressed is_hovered get_draw_mode set_pressed_no_signal",
