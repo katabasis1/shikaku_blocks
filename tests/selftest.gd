@@ -195,6 +195,9 @@ var _done: bool = false
 var _had_file: Dictionary = {}  # путь -> был ли файл игрока до теста
 var _landed_log: Array = []  # Board.landed в _test_juice_moves: [блок, место, мс]
 var _sound_log: Array = []  # Audio.requested (15.6): [звук, высота, кадр, музыка приглушена]
+## Сколько раз в сценарии 14.8b должен прозвучать Audio.ERROR (20.1a): 1 — ошибочный блок дождался трещины на поле;
+## 0 — проба с нажатием на лоток вернула его раньше (flush_mistake до 0,45 с), звука ошибки нет.
+var _logic_error_sounds: int = 1
 var _vib_log: Array = []  # Audio.vibration_requested (15.4): рисунки вибрации
 ## 14.8c: нажатия проб ввода — настоящими событиями (Viewport.push_input); false — в покое они не дошли, в сценарии
 ## остаются проверки логики (can_undo, can_request) и Control поверх (см. _test_effects_logic).
@@ -1620,8 +1623,9 @@ func _check_level_sounds(tag: String, stars: int) -> void:
 	if notes + lines + wins != places or places == 0:
 		bad.append("ударов %d, а нот %d + линий %d + побед %d (у каждого удара — ровно одно)" % [places, notes, lines,
 				wins])
-	var expect := {Audio.ERROR: 1, Audio.MISS: 0, Audio.HINT: 1, Audio.UNDO: 1, Audio.WIN: 1, Audio.JINGLE: 1,
-			Audio.STAR: stars}
+	# 20.1a: отмены нет — Audio.UNDO в игре не звучит; ошибка — Audio.ERROR, если блок дождался трещины.
+	var expect := {Audio.ERROR: _logic_error_sounds, Audio.MISS: 0, Audio.HINT: 1, Audio.UNDO: 0, Audio.WIN: 1,
+			Audio.JINGLE: 1, Audio.STAR: stars}
 	for sound: StringName in expect:
 		if int(count.get(sound, 0)) != int(expect[sound]):
 			bad.append("%s — %d раз (ждали %d)" % [sound, int(count.get(sound, 0)), int(expect[sound])])
@@ -5673,17 +5677,19 @@ func _test_analytics() -> void:
 		_drop(game, m.slot, m.rect)
 	_check(Analytics.count("first_move") == 1 and _is_span(_goal_params("first_move").get("first_move", {}).get(key)),
 			"первый ход: целей %d, последняя %s" % [Analytics.count("first_move"), str(Analytics.last("first_move"))])
-	# Тупик и отмена — по разу за попытку, сколько всего — в итоге.
+	# Тупик — раз за попытку, сколько всего — в итоге. Отмены у игрока нет (20.1a): тупиковый ход — ошибка (сердце),
+	# блок сам возвращается в лоток (flush_mistake — сразу); целей undo нет, в итоге undo — 0 (до 20.1e).
 	for _k in 2:
 		var mv := _find_dead_end_move(game)
 		if not _check(not mv.is_empty(), "уровень %d: нет тупикового хода" % LOGIC_LEVEL):
 			break
 		_drop(game, mv[0], mv[1])
-		game._on_undo_pressed()
+		game.flush_mistake()
 		await _frames(1)
 	_check(Analytics.count("dead_end") == 1 and _goal_params("dead_end") == {"dead_end": {key: 1}}
-			and Analytics.count("undo") == 1 and _goal_params("undo") == {"undo": {key: 1}},
-			"тупик и отмена: целей %d и %d (ждали по одной)" % [Analytics.count("dead_end"), Analytics.count("undo")])
+			and Analytics.count("undo") == 0,
+			"тупик: целей dead_end %d (ждали 1), undo %d (ждали 0)" % [Analytics.count("dead_end"),
+			Analytics.count("undo")])
 	# Подсказка: каждая, бесплатная и за рекламу.
 	game.hints.give()
 	_check(Analytics.count("hint") == 1 and _goal_params("hint") == {"hint": {key: "free"}},
@@ -5699,7 +5705,7 @@ func _test_analytics() -> void:
 	var placed: int = game.moves.size()
 	game._on_restart_pressed()
 	await _frames(1)
-	var want := {"undo": 2, "hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total]}
+	var want := {"undo": 0, "hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total]}
 	var got_restart: Dictionary = _goal_params("level_restart").get("level_restart", {}).get(key, {}).duplicate()
 	var restart_time: Variant = got_restart.get("time")
 	got_restart.erase("time")
@@ -6655,6 +6661,7 @@ func _check_probes(modes: Array[int], infos: Dictionary) -> void:
 ## а в разгар тупика (до 0,8 с, пока поле не потемнеет) и первой линии (до 0,5 с, пока не пойдёт волна) — ещё раз.
 func _play_logic_level(game: Game, tag: String, frozen: bool, info: Dictionary) -> Dictionary:
 	GameState.reset_progress()
+	_logic_error_sounds = 0
 	game.start_level(LOGIC_LEVEL)
 	if frozen:
 		game.juice.hit_stop(LOGIC_FREEZE_SEC)
@@ -6696,6 +6703,8 @@ func _play_logic_level(game: Game, tag: String, frozen: bool, info: Dictionary) 
 		while game.board.dimmed() <= 0.0 and Time.get_ticks_msec() < dead_ms + 800:
 			await get_tree().process_frame
 		_probe_input(game, tag, "тупик через %.2f с" % ((Time.get_ticks_msec() - dead_ms) / 1000.0), info, true)
+		# Блок ещё на поле — трещина и звук ошибки уже были (0,45 с < 0,8 с < MISTAKE_RETURN); вернулся — звука нет.
+		_logic_error_sounds = 1 if game.has_mistake() else 0
 		game.flush_mistake()
 		_check(not game.has_mistake() and game.moves.size() == before and game.hearts.mistakes == 1,
 				"%s: ошибочный блок не вернулся (ходов %d, ошибок %d)" % [tag, game.moves.size(), game.hearts.mistakes])
@@ -7619,9 +7628,8 @@ func _test_toast(game: Game) -> void:
 			and font != null and font.resource_path == FONT_PATH and fs == 30
 			and label.get_theme_color(&"font_color").is_equal_approx(Color.WHITE),
 			"текст сообщения не ToastText (Nunito 800, 30, белый, строки режет Toast)")
-	var msgs: Array[String] = ["Тупик: так поле не заполнить. Отмени ход", "Нет ходов! Отмени ошибку",
-			"Всё ещё тупик — отмени ещё ход", "Сначала отмени ошибочный ход", "Подсказка откроется после просмотра рекламы",
-			"Подсказка: убраны неверные блоки (%d)", "Так остальные блоки не поместятся"]  # = TOAST_TEXTS в tools/layout_model.py
+	# = TOAST_TEXTS в tools/layout_model.py (20.1a: подписи про отмену убраны вместе с ней)
+	var msgs: Array[String] = ["Подсказка откроется после просмотра рекламы", "Так остальные блоки не поместятся"]
 	var line_h := font.get_height(fs)
 	var pad := t.get_theme_stylebox(&"panel").get_minimum_size()
 	var loc := TranslationServer.get_locale()

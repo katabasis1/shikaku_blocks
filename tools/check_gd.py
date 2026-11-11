@@ -49,6 +49,7 @@ get_theme_font_size get_theme_font atr tr add_theme_color_override add_theme_con
 get_theme_constant texture pressed disabled toggled button_pressed tooltip_text set_anchors_and_offsets_preset
 resized minimum_size_changed get_combined_minimum_size icon theme_type_variation get_instance_id
 find_children get_path_to queue_redraw texture_filter
+is_visible_in_tree toggle_mode set_pressed_no_signal get_node
 """.split())
 
 
@@ -400,6 +401,11 @@ for srel, info in scripts.items():
                  for a in re.finditer(r"(\w+)\s*:\s*([A-Z]\w*)", m.group(1)) if a.group(2) in by_class}
         local.update({a.group(1): by_class[a.group(2)]
                       for a in re.finditer(r"\bvar\s+(\w+)\s*:\s*([A-Z]\w*)", code[m.start():end]) if a.group(2) in by_class})
+        # var g := ps.instantiate() as Game — тип из «as Класс» в конце строки (20.1b: так selftest держит игру,
+        # и вызов убранного _on_undo_pressed прошёл мимо проверки)
+        local.update({a.group(1): by_class[a.group(2)]
+                      for a in re.finditer(r"\bvar\s+(\w+)\s*:=[^\n]*\bas\s+([A-Z]\w*)[ \t]*$", code[m.start():end], re.M)
+                      if a.group(2) in by_class})
         # var g := _game — тип берётся у переменной справа
         for a in re.finditer(r"\bvar\s+(\w+)\s*:=\s*(\w+)[ \t]*$", code[m.start():end], re.M):
             src_t = local.get(a.group(2)) or fields.get(a.group(2))
