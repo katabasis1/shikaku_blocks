@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Модель сердец попытки (этап 20.1a, PLAN 20.1) — те же правила, что в scripts/hearts.gd.
+"""Модель сердец попытки (этап 20.1a, PLAN 20.1) — те же правила, что в scripts/hearts.gd, и окно «Сердца
+закончились» (20.1b) — те же правила, что HeartsPanel.offer_for / after_ad в scenes/ui/hearts_panel.gd.
 
 Правила:
 - Сколько сердец на попытку (max_for): «Лаборатория» и флаг hearts = 0 — без предела (0); основной путь до
@@ -10,10 +11,15 @@
   Бесплатное продолжение (реклама не показалась) — ещё и флаг revive_free_on_fail и только раз за попытку.
   Возрождение даёт +1 сердце, поле как есть.
 - Звёзды за победу: после возрождения — 1, иначе 3 − ошибки − подсказки, не ниже 1.
+- Окно (offer_for): возрождения исчерпаны — LIMIT (только «Заново»); реклама есть — AD («Продолжить» за рекламу);
+  рекламы нет — FREE, если бесплатное продолжение ещё можно, иначе NO_AD.
+- После рекламы за сердце (after_ad): награда — REVIVE; закрыл до награды — NOTE_CLOSED (окно остаётся, бесплатного
+  нет); не показалась (not_shown, timeout) — FREE, если бесплатное ещё можно, иначе NOTE_FAILED (окно остаётся).
 
 Сверка с кодом (без Godot): STARS_MAX и список функций scripts/hearts.gd — как в модели; флаги по умолчанию
 в autoload/ysdk.gd — как в PLAN 20.1 (hearts 3, hearts_from_level 4, revive_max 3, revive_free_on_fail 1);
-tests/selftest.gd читает эталон и знает все события. Поменяли hearts.gd — повторите правку здесь.
+перечисления Offer и After в hearts_panel.gd — как OFFERS и AFTERS; tests/selftest.gd читает эталон, знает все
+события и строки W и D. Поменяли hearts.gd или hearts_panel.gd — повторите правку здесь.
 
 Эталон для самопроверки — tests/hearts_expected.txt (selftest, раздел «Сердца: правила»):
   python3 tools/hearts_model.py           — проверить модель и что эталон свежий;
@@ -22,6 +28,8 @@ tests/selftest.gd читает эталон и знает все события.
 Строки эталона:
   M уровень задача_дня лаборатория hearts hearts_from_level = сердец
   R имя сердец revive_max revive_free_on_fail события = шаг шаг … stars=N
+  W можно_возродиться реклама_есть бесплатное_можно = ПРЕДЛОЖЕНИЕ        (HeartsPanel.offer_for, имя из Offer)
+  D награда итог_рекламы бесплатное_можно = ДЕЙСТВИЕ                       (HeartsPanel.after_ad, имя из After)
 События: L — ошибка, H — подсказка, A — возрождение за рекламу, F — бесплатное продолжение, «-» — ничего.
 Шаг — состояние после события: «осталось.ошибок.возрождений.ОВБР», где О — сердца кончились, В — можно возродиться,
 Б — можно продолжить бесплатно, Р — событие сработало (0 / 1). stars — звёзды при победе после всех событий.
@@ -36,6 +44,7 @@ OUT = os.path.join(ROOT, "tests", "hearts_expected.txt")
 HEARTS_GD = os.path.join(ROOT, "scripts", "hearts.gd")
 YSDK_GD = os.path.join(ROOT, "autoload", "ysdk.gd")
 SELFTEST_GD = os.path.join(ROOT, "tests", "selftest.gd")
+PANEL_GD = os.path.join(ROOT, "scenes", "ui", "hearts_panel.gd")
 
 # Флаги по умолчанию, которые обещает PLAN 20.1 (константы autoload/ysdk.gd).
 PLAN_DEFAULTS = {"DEFAULT_HEARTS": 3, "DEFAULT_HEARTS_FROM_LEVEL": 4, "DEFAULT_REVIVE_MAX": 3,
@@ -44,6 +53,12 @@ PLAN_DEFAULTS = {"DEFAULT_HEARTS": 3, "DEFAULT_HEARTS_FROM_LEVEL": 4, "DEFAULT_R
 GD_FUNCS = {"max_for", "reset", "is_limited", "lose", "is_out", "can_revive", "can_continue_free", "revive",
             "try_revive", "stars"}
 EVENTS = "LHAF"
+# Окно 20.1b: перечисления HeartsPanel.Offer и HeartsPanel.After — те же имена в том же порядке; итоги рекламы за
+# награду — YSDK.last_ad_result (YSDK.ad_result и таймаут).
+OFFERS = ["AD", "FREE", "NO_AD", "LIMIT"]
+AFTERS = ["REVIVE", "NOTE_CLOSED", "FREE", "NOTE_FAILED"]
+AD_RESULTS = ["rewarded", "closed", "not_shown", "timeout"]
+PANEL_FUNCS = {"offer_for", "after_ad"}
 
 
 class Hearts:
@@ -102,6 +117,24 @@ class Hearts:
         if self.revives > 0:
             return 1
         return min(max(STARS_MAX - self.mistakes - max(hints_used, 0), 1), STARS_MAX)
+
+
+def offer_for(can_revive, ad_available, can_free):
+    """Что предложить в окне «Сердца закончились» (HeartsPanel.offer_for)."""
+    if not can_revive:
+        return "LIMIT"
+    if ad_available:
+        return "AD"
+    return "FREE" if can_free else "NO_AD"
+
+
+def after_ad(rewarded, result, can_free):
+    """Что делать, когда реклама за сердце закончилась (HeartsPanel.after_ad); result — YSDK.last_ad_result."""
+    if rewarded:
+        return "REVIVE"
+    if result == "closed":
+        return "NOTE_CLOSED"
+    return "FREE" if can_free else "NOTE_FAILED"
 
 
 def state(h, revive_max, allow_free, ok):
@@ -187,6 +220,14 @@ def gd_funcs(text):
     return set(re.findall(r"^(?:static\s+)?func\s+(\w+)\s*\(", text, re.M))
 
 
+def gd_enum(text, name):
+    """enum Имя { A, B, C } → ["A", "B", "C"]; нет — None."""
+    m = re.search(r"^enum\s+%s\s*\{([^}]*)\}" % name, text, re.M)
+    if not m:
+        return None
+    return [x.split("=")[0].strip() for x in m.group(1).split(",") if x.strip()]
+
+
 def check_sources(expect):
     """Модель и код говорят об одном: константы, функции, флаги по умолчанию, самопроверка читает эталон."""
     hearts = read(HEARTS_GD)
@@ -216,6 +257,18 @@ def check_sources(expect):
         body = selftest.split("func _hearts_run(", 1)[-1].split("\nfunc ", 1)[0]
         for ev in EVENTS:
             expect('"%s":' % ev in body, "selftest _hearts_run не знает событие %s" % ev)
+        test = selftest.split("func _test_hearts()", 1)[-1].split("\nfunc ", 1)[0]
+        expect('f[0] == "W"' in test and 'f[0] == "D"' in test,
+               "selftest _test_hearts не читает строки W и D (окно «Сердца закончились»)")
+    panel = read(PANEL_GD)
+    expect(panel is not None, "нет scenes/ui/hearts_panel.gd")
+    if panel is not None:
+        expect(gd_enum(panel, "Offer") == OFFERS, "hearts_panel.gd: enum Offer %s, в модели %s" % (
+            gd_enum(panel, "Offer"), OFFERS))
+        expect(gd_enum(panel, "After") == AFTERS, "hearts_panel.gd: enum After %s, в модели %s" % (
+            gd_enum(panel, "After"), AFTERS))
+        missing = PANEL_FUNCS - set(re.findall(r"^static\s+func\s+(\w+)\s*\(", panel, re.M))
+        expect(not missing, "hearts_panel.gd: нет static func %s" % sorted(missing))
 
 
 def build():
@@ -223,6 +276,8 @@ def build():
         "# Эталон сердец (20.1a) для selftest: python3 tools/hearts_model.py --write. Руками не править.",
         "# M уровень задача_дня лаборатория hearts hearts_from_level = сердец",
         "# R имя сердец revive_max revive_free_on_fail события = шаг ... stars=N; шаг — осталось.ошибок.возрождений.ОВБР",
+        "# W можно_возродиться реклама_есть бесплатное_можно = ПРЕДЛОЖЕНИЕ (окно 20.1b, HeartsPanel.Offer)",
+        "# D награда итог_рекламы бесплатное_можно = ДЕЙСТВИЕ (окно 20.1b, HeartsPanel.After)",
     ]
     for lvl in MAX_FOR_LEVELS:
         for daily in (0, 1):
@@ -234,6 +289,16 @@ def build():
     for name, n_max, rmax, free, events in SCENARIOS:
         res, _h, _hints = run(n_max, rmax, bool(free), events)
         lines.append("R %s %d %d %d %s = %s" % (name, n_max, rmax, free, events, res))
+    for can_revive in (0, 1):
+        for ad in (0, 1):
+            for can_free in (0, 1):
+                lines.append("W %d %d %d = %s" % (can_revive, ad, can_free,
+                                                   offer_for(bool(can_revive), bool(ad), bool(can_free))))
+    for rewarded in (0, 1):
+        for result in AD_RESULTS:
+            for can_free in (0, 1):
+                lines.append("D %d %s %d = %s" % (rewarded, result, can_free,
+                                                  after_ad(bool(rewarded), result, bool(can_free))))
     return "\n".join(lines) + "\n"
 
 
@@ -266,6 +331,38 @@ def main():
         print("  %-26s %-11s → %s" % (name, events, res))
     expect(run(3, 3, True, "LLLFLF")[0].split()[-2].endswith("0"), "бесплатное продолжение — только раз за попытку")
     expect(run(3, 3, True, "LLLA")[0].endswith("stars=1"), "после возрождения — 1 звезда")
+    # Окно «Сердца закончились» (20.1b): правила PLAN 20.1.
+    expect(all(offer_for(False, ad, fr) == "LIMIT" for ad in (False, True) for fr in (False, True)),
+           "окно: возрождения исчерпаны — только «Заново»")
+    expect(offer_for(True, True, False) == "AD" and offer_for(True, True, True) == "AD",
+           "окно: реклама есть — «Продолжить» за рекламу")
+    expect(offer_for(True, False, True) == "FREE" and offer_for(True, False, False) == "NO_AD",
+           "окно: рекламы нет — бесплатно, пока можно, потом «Заново»")
+    expect(all(after_ad(False, "closed", fr) == "NOTE_CLOSED" for fr in (False, True)),
+           "окно: закрыл рекламу до награды — окно остаётся, бесплатного нет")
+    expect(all(after_ad(False, r, True) == "FREE" and after_ad(False, r, False) == "NOTE_FAILED"
+               for r in ("not_shown", "timeout")), "окно: реклама не показалась — бесплатно один раз, потом пояснение")
+    expect(all(after_ad(True, r, fr) == "REVIVE" for r in AD_RESULTS for fr in (False, True)),
+           "окно: награда пришла — возрождение")
+    # Как в игре: 3 сердца, revive_max 3, бесплатное разрешено; реклама не показалась → бесплатно, снова кончились и
+    # снова не показалась → пояснение, досмотрел → возрождение, третий раз → возрождение, дальше — предел.
+    h = Hearts()
+    h.reset(3)
+    flow = []
+    for ad_result in ("not_shown", "not_shown", "rewarded", "closed", "rewarded", None):
+        while not h.is_out():
+            h.lose()
+        o = offer_for(h.can_revive(3), True, h.can_continue_free(True))
+        flow.append(o)
+        if o != "AD":
+            break
+        a = after_ad(ad_result == "rewarded", ad_result, h.can_continue_free(True))
+        flow.append(a)
+        if a in ("REVIVE", "FREE"):
+            expect(h.try_revive(3, a == "FREE", True), "окно: %s не сработало" % a)
+    expect(flow == ["AD", "FREE", "AD", "NOTE_FAILED", "AD", "REVIVE", "AD", "NOTE_CLOSED", "AD", "REVIVE", "LIMIT"],
+           "окно, как в игре: %s" % flow)
+    print("  окно, как в игре: %s" % " ".join(flow))
 
     check_sources(expect)
 

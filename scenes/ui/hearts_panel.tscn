@@ -1,14 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenes/ui/hearts_panel.gd" id="1_hearts"]
+[ext_resource type="Script" path="res://scenes/ui/hearts_panel.gd" id="1_hearts_panel"]
 
-[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="2_home"]
+[ext_resource type="Script" path="res://scripts/candy_card.gd" id="2_card"]
 
-[ext_resource type="Texture2D" path="res://assets/icons/ad.png" id="3_ad"]
+[ext_resource type="Script" path="res://scripts/pill_button.gd" id="3_pill"]
 
-[ext_resource type="Script" path="res://scripts/candy_card.gd" id="4_card"]
+[ext_resource type="Script" path="res://scenes/game/hearts_bar.gd" id="4_hearts"]
 
-[ext_resource type="Script" path="res://scripts/pill_button.gd" id="5_pill"]
+[ext_resource type="Texture2D" path="res://assets/icons/ad.png" id="5_ad"]
+
+[ext_resource type="Texture2D" path="res://assets/icons/home.png" id="6_home"]
 
 [sub_resource type="Animation" id="Animation_show"]
 resource_name = "show"
@@ -63,7 +65,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_hearts")
+script = ExtResource("1_hearts_panel")
 
 [node name="Dim" type="ColorRect" parent="."]
 layout_mode = 1
@@ -84,14 +86,14 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -280.0
-offset_top = -200.0
+offset_top = -260.0
 offset_right = 280.0
-offset_bottom = 200.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
-pivot_offset = Vector2(280, 200)
+pivot_offset = Vector2(280, 260)
 theme_type_variation = &"CandyCard"
-script = ExtResource("4_card")
+script = ExtResource("2_card")
 
 [node name="Box" type="VBoxContainer" parent="Card"]
 layout_mode = 2
@@ -106,56 +108,47 @@ text = "СЕРДЦА ЗАКОНЧИЛИСЬ"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="HeartsRow" type="Control" parent="Card/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(188, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("4_hearts")
+
 [node name="Text" type="Label" parent="Card/Box"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(480, 0)
 layout_mode = 2
-size_flags_horizontal = 4
 theme_type_variation = &"CardText"
-text = "Продолжи с этого места или начни уровень заново"
+text = "Посмотри рекламу и продолжи с того же места"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Note" type="Label" parent="Card/Box"]
+[node name="ContinueButton" type="Button" parent="Card/Box"]
 unique_name_in_owner = true
-visible = false
-custom_minimum_size = Vector2(480, 0)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_type_variation = &"CardText"
-theme_override_font_sizes/font_size = 26
-horizontal_alignment = 1
-autowrap_mode = 3
-
-[node name="ReviveButton" type="Button" parent="Card/Box"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 128)
+custom_minimum_size = Vector2(400, 110)
 layout_mode = 2
 size_flags_horizontal = 4
 focus_mode = 0
-theme_override_font_sizes/font_size = 52
 text = "ПРОДОЛЖИТЬ"
-script = ExtResource("5_pill")
+script = ExtResource("3_pill")
 
-[node name="ReviveAdBadge" type="TextureRect" parent="Card/Box/ReviveButton"]
+[node name="ContinueAdBadge" type="TextureRect" parent="Card/Box/ContinueButton"]
 unique_name_in_owner = true
-visible = false
-texture_filter = 4
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -50.0
-offset_top = -14.0
-offset_right = 6.0
-offset_bottom = 42.0
+offset_left = -30.0
+offset_top = -30.0
+offset_right = 30.0
+offset_bottom = 30.0
 grow_horizontal = 0
 mouse_filter = 2
-texture = ExtResource("3_ad")
+texture = ExtResource("5_ad")
 expand_mode = 1
-metadata/badge_d = 54.0
-metadata/badge_shape = Vector2(0.9375, 0.8984)
-metadata/badge_round = 0.6
+stretch_mode = 5
 
 [node name="RestartButton" type="Button" parent="Card/Box"]
 unique_name_in_owner = true
@@ -164,8 +157,8 @@ layout_mode = 2
 size_flags_horizontal = 4
 focus_mode = 0
 theme_override_font_sizes/font_size = 30
-text = "Начать заново"
-script = ExtResource("5_pill")
+text = "ЗАНОВО"
+script = ExtResource("3_pill")
 tone = 2
 
 [node name="HomeButton" type="Button" parent="Card/Box"]
@@ -177,7 +170,7 @@ size_flags_horizontal = 4
 focus_mode = 0
 theme_type_variation = &"CardLink"
 text = "В меню"
-icon = ExtResource("2_home")
+icon = ExtResource("6_home")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {

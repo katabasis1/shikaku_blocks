@@ -22,6 +22,8 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ui/settings_panel.tscn" id="11_settings_panel"]
 
+[ext_resource type="PackedScene" path="res://scenes/ui/hearts_panel.tscn" id="40_hearts_panel"]
+
 [ext_resource type="PackedScene" path="res://scenes/ui/tutorial_hand.tscn" id="12_tutorial_hand"]
 
 [ext_resource type="Script" path="res://scenes/game/juice.gd" id="30_juice"]
@@ -398,6 +400,11 @@ visible = false
 layout_mode = 1
 
 [node name="PausePanel" parent="." instance=ExtResource("11_settings_panel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="HeartsPanel" parent="." instance=ExtResource("40_hearts_panel")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

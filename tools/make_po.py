@@ -19,8 +19,29 @@ STRINGS = {
     "Отлично!": ("Great!", "Harika!"),
     "Супер!": ("Super!", "Süper!"),
     "Невероятно!": ("Incredible!", "İnanılmaz!"),
-    # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Это сообщение — до окна 20.1b.
-    "Сердца кончились — начни заново": ("Out of hearts — start over", "Canın kalmadı — baştan başla"),
+    # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Окно «Сердца закончились» (20.1b, hearts_panel):
+    # заголовок, вторая строка «Продолжить», «Заново», пояснения по предложению и после рекламы.
+    "СЕРДЦА ЗАКОНЧИЛИСЬ": ("OUT OF HEARTS", "CANLAR BİTTİ"),
+    "+1 СЕРДЦЕ": ("+1 HEART", "+1 CAN"),
+    "ЗАНОВО": ("START OVER", "BAŞTAN BAŞLA"),
+    "Посмотри рекламу и продолжи с того же места": (
+        "Watch an ad and continue where you left off",
+        "Reklam izle ve kaldığın yerden devam et"),
+    "Держи ещё одно сердце и продолжай с того же места": (
+        "Here's one more heart — continue where you left off",
+        "İşte bir can daha — kaldığın yerden devam et"),
+    "Реклама сейчас недоступна. Начни заново — с полными сердцами": (
+        "Ads aren't available right now. Start over with full hearts",
+        "Reklam şu an kullanılamıyor. Canların dolu olarak baştan başla"),
+    "Продолжений на этом уровне больше нет. Начни заново — с полными сердцами": (
+        "No more continues on this level. Start over with full hearts",
+        "Bu seviyede devam hakkın kalmadı. Canların dolu olarak baştan başla"),
+    "Сердце дают, если досмотреть рекламу до конца": (
+        "You get the heart only if you watch the ad to the end",
+        "Canı almak için reklamı sonuna kadar izle"),
+    "Реклама не загрузилась. Попробуй ещё раз или начни заново": (
+        "The ad didn't load. Try again or start over",
+        "Reklam yüklenmedi. Tekrar dene ya da baştan başla"),
     "Подсказка откроется после просмотра рекламы": (
         "Watch the ad to unlock the hint",
         "İpucu için reklamı izle"),

@@ -948,6 +948,12 @@ class FakeBridge extends RefCounted:
 	func loadFlags(defaults_json: String) -> void:
 		other.append("loadFlags " + defaults_json)
 
+	func showRewarded() -> void:
+		other.append("showRewarded")
+
+	func showInterstitial() -> void:
+		other.append("showInterstitial")
+
 
 ## Таблицы лидеров после сброса прогресса (16.3a): лучшее, что Яндекс принял (GameState.leaderboard_sent), не
 ## сбрасывается, переживает JSON, файл и облако любого поколения; YSDK.submit_score не отправляет значение не больше
@@ -5239,12 +5245,15 @@ func _test_dead_end(game: Game, lvl: int) -> bool:
 	return true
 
 
-## Сердца кончились и возрождение (20.1a) на живой игре — первый уровень из levels с сердцами и тупиковым ходом.
-## Ошибки подряд (блок каждый раз сразу в гнездо — flush_mistake): после последней ходить нельзя (can_play),
-## «Подсказка» выключена и не срабатывает, полоса пустая, подпись «Сердца кончились». Game.revive (revive_max = 2,
-## бесплатное разрешено): бесплатное — +1 сердце, поле как было, подпись снята; пока сердце есть — не даётся;
-## второе бесплатное за попытку — нет, за рекламу — да; revive_max исчерпан — нет. Звёзды после возрождения — 1;
-## новая попытка — снова полные сердца. Те же правила без игры — _test_hearts и tools/hearts_model.py.
+## Сердца кончились и окно «Сердца закончились» (20.1a, 20.1b) на живой игре — первый уровень из levels с сердцами
+## и тупиковым ходом; флаги revive_max = 2, бесплатное разрешено. Ошибки подряд (блок каждый раз сразу в гнездо —
+## flush_mistake): после последней ходить нельзя (can_play), «Подсказка» выключена, полоса пустая, открыто окно, пауза
+## под ним не открывается. Без рекламы (вне Яндекса): «Продолжить» бесплатно — +1 сердце, поле как было; второй раз —
+## рекламы нет и бесплатного нет, только «Заново». С рекламой (подделка моста): закрыл раньше награды — окно с
+## пояснением; не показалась, а бесплатное уже брали — пояснение; досмотрел — возрождение; revive_max исчерпан —
+## только «Заново», звёзд 1, межстраничной на «Далее» не будет. «Заново» из окна — снова полные сердца; реклама не
+## показалась — бесплатно; сердца кончились под паузой — окно после неё. Правила окна без игры — _test_hearts
+## (строки W и D) и tools/hearts_model.py.
 func _test_hearts_out(game: Game, levels: Array[int]) -> void:
 	for lvl in levels:
 		game.start_level(lvl)
@@ -5252,9 +5261,16 @@ func _test_hearts_out(game: Game, levels: Array[int]) -> void:
 		if game.hearts.is_limited() and not _find_dead_end_move(game).is_empty():
 			var saved_max := YSDK._revive_max
 			var saved_free := YSDK._revive_free_on_fail
+			var saved_bridge: Variant = YSDK._bridge
+			var saved_available := YSDK.is_available
 			YSDK._revive_max = 2
 			YSDK._revive_free_on_fail = true
+			YSDK.is_available = false
 			await _hearts_out_run(game, lvl)
+			if YSDK._ad_kind != YSDK.AD_NONE:
+				YSDK._finish_ad("timeout")
+			YSDK._bridge = saved_bridge
+			YSDK.is_available = saved_available
 			YSDK._revive_max = saved_max
 			YSDK._revive_free_on_fail = saved_free
 			return
@@ -5273,12 +5289,32 @@ func _hearts_burn(game: Game, lvl: int, n: int) -> bool:
 	return true
 
 
+## Окно «Сердца закончились» сейчас — для сообщений: видно, предложение, ждёт рекламу, пояснение, кнопки.
+static func _hearts_panel_state(hp: HeartsPanel) -> String:
+	return "окно %s, %s, ждёт %s, пояснение «%s», «Продолжить» %s, значок рекламы %s, «Заново» %s" % [
+			"открыто" if hp.visible else "закрыто", HeartsPanel.Offer.keys()[hp.offer], hp.busy, hp.note,
+			hp.continue_button.visible, hp.ad_badge.visible, PillButton.Tone.keys()[hp.restart_button.tone]]
+
+
+## Окно открыто с предложением offer (и пояснением note, "" — обычным): кнопки и текст как надо.
+func _hearts_panel_is(game: Game, offer: int, note: String = "") -> bool:
+	var hp := game.hearts_panel
+	var cont := offer == HeartsPanel.Offer.AD or offer == HeartsPanel.Offer.FREE
+	var want_text := tr(note if not note.is_empty() else HeartsPanel.offer_text(offer))
+	return hp.visible and hp.offer == offer and hp.note == note and not hp.busy \
+			and hp.continue_button.visible == cont and not hp.continue_button.disabled \
+			and hp.ad_badge.visible == (offer == HeartsPanel.Offer.AD) and not hp.restart_button.disabled \
+			and hp.restart_button.tone == (PillButton.Tone.LIGHT if cont else PillButton.Tone.GREEN) \
+			and hp.text_label.text == want_text and hp.title_label.text == tr("СЕРДЦА ЗАКОНЧИЛИСЬ") \
+			and hp.hearts_row.max_hearts == game.hearts.max_hearts and hp.hearts_row.left == 0
+
+
 func _hearts_out_run(game: Game, lvl: int) -> void:
 	var h := game.hearts
 	var bar := game.hearts_bar
+	var hp := game.hearts_panel
 	var n := h.max_hearts
 	var moves_before := game.moves.size()
-	var out_text := tr("Сердца кончились — начни заново")
 	if not _hearts_burn(game, lvl, n):
 		return
 	_check(h.is_out() and h.mistakes == n and not game.can_play() and game.moves.size() == moves_before,
@@ -5289,42 +5325,107 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 			bar.max_hearts])
 	game.hints.give()
 	_check(game.moves.size() == moves_before and h.is_out(), "L%d: подсказка сработала без сердец" % lvl)
-	_check(game.toast.is_shown() and game.toast.shown_text().replace("\n", " ") == out_text,
-			"L%d: нет подписи «%s» (на экране «%s»)" % [lvl, out_text, game.toast.shown_text()])
+	# Рекламы нет (вне Яндекса), бесплатное можно — «Продолжить» без значка рекламы.
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.FREE) and not YSDK._gameplay_wanted,
+			"L%d: сердца кончились — ждали окно «бесплатно»: %s, GameplayAPI идёт: %s" % [lvl, _hearts_panel_state(hp),
+			YSDK._gameplay_wanted])
+	game._on_pause_pressed()
+	_check(not game.paused and not game.pause_panel.visible, "L%d: пауза открылась поверх окна сердец" % lvl)
 
-	# Бесплатное продолжение (реклама не показалась): +1 сердце, поле как было, подпись снята.
-	_check(game.revive(true) and h.left == 1 and h.revives == 1 and h.free_used and game.can_play()
+	# «Продолжить» бесплатно: +1 сердце, поле как было, окно закрыто, игра идёт.
+	hp.continue_button.pressed.emit()
+	_check(not hp.visible and h.left == 1 and h.revives == 1 and h.free_used and game.can_play()
 			and not game.hint_button.disabled and bar.left == 1 and game.moves.size() == moves_before
-			and not game.toast.is_shown(),
-			"L%d: бесплатное возрождение: сердец %d, возрождений %d, ходить можно: %s, на полосе %d, подпись: %s" % [
-			lvl, h.left, h.revives, game.can_play(), bar.left, game.toast.is_shown()])
+			and YSDK._gameplay_wanted,
+			"L%d: бесплатное продолжение: сердец %d, возрождений %d, ходить можно: %s, на полосе %d, %s" % [lvl, h.left,
+			h.revives, game.can_play(), bar.left, _hearts_panel_state(hp)])
 	_check(not game.revive(false) and h.left == 1 and h.revives == 1,
 			"L%d: возрождение дали, хотя сердце есть (сердец %d, возрождений %d)" % [lvl, h.left, h.revives])
 
-	# Снова без сердец: второго бесплатного за попытку нет, за рекламу — есть (возрождений 1 < revive_max 2).
+	# Снова без сердец: рекламы нет и бесплатное уже брали — только «Заново» (главная таблетка).
 	if not _hearts_burn(game, lvl, 1):
 		return
-	_check(h.is_out() and not game.revive(true) and h.is_out() and h.revives == 1,
-			"L%d: второе бесплатное продолжение за попытку (сердец %d, возрождений %d)" % [lvl, h.left, h.revives])
-	_check(game.revive(false) and h.left == 1 and h.revives == 2 and game.can_play(),
-			"L%d: возрождение за рекламу не сработало (сердец %d, возрождений %d)" % [lvl, h.left, h.revives])
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.NO_AD) and not game.revive(true) and h.revives == 1,
+			"L%d: второй раз без рекламы — ждали «только Заново»: %s, возрождений %d" % [lvl, _hearts_panel_state(hp),
+			h.revives])
 
-	# revive_max исчерпан: возрождения нет, ходить нельзя; звёзд за уровень — 1.
+	# Реклама есть (подделка моста): «Продолжить» со значком рекламы. Закрыл раньше награды — окно с пояснением.
+	var fake := FakeBridge.new()
+	YSDK._bridge = fake
+	YSDK.is_available = true
+	game.open_hearts_panel()
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.AD), "L%d: реклама есть — ждали «за рекламу»: %s" % [lvl,
+			_hearts_panel_state(hp)])
+	hp.continue_button.pressed.emit()
+	_check(hp.busy and hp.continue_button.disabled and hp.restart_button.disabled and hp.home_button.disabled
+			and YSDK._ad_kind == YSDK.AD_REWARDED and fake.other.has("showRewarded"),
+			"L%d: «Продолжить» за рекламу: реклама %s, вызовы %s, %s" % [lvl, YSDK._ad_kind, str(fake.other),
+			_hearts_panel_state(hp)])
+	hp.restart_button.pressed.emit()
+	_check(hp.visible and h.is_out() and h.revives == 1, "L%d: «Заново» сработало, пока идёт реклама" % lvl)
+	YSDK._handle_event("rew_open", null)
+	YSDK._handle_event("rew_close", null)
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.AD, HeartsPanel.NOTE_CLOSED) and h.is_out() and h.revives == 1,
+			"L%d: закрыл рекламу раньше награды: %s, сердец %d, возрождений %d" % [lvl, _hearts_panel_state(hp), h.left,
+			h.revives])
+	# Не показалась, а бесплатное уже брали — пояснение, окно остаётся.
+	hp.continue_button.pressed.emit()
+	YSDK._finish_ad("timeout")
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.AD, HeartsPanel.NOTE_FAILED) and h.is_out() and h.revives == 1,
+			"L%d: реклама не показалась, бесплатное уже брали: %s, возрождений %d" % [lvl, _hearts_panel_state(hp),
+			h.revives])
+	# Досмотрел — возрождение.
+	hp.continue_button.pressed.emit()
+	for e in ["rew_open", "rew_reward", "rew_close"]:
+		YSDK._handle_event(e, null)
+	_check(not hp.visible and h.left == 1 and h.revives == 2 and game.can_play() and YSDK._ad_kind == YSDK.AD_NONE,
+			"L%d: досмотрел рекламу — возрождения нет: сердец %d, возрождений %d, %s" % [lvl, h.left, h.revives,
+			_hearts_panel_state(hp)])
+
+	# revive_max исчерпан: только «Заново»; звёзд за уровень — 1, межстраничной на «Далее» не будет.
 	if not _hearts_burn(game, lvl, 1):
 		return
-	_check(h.is_out() and not game.revive(false) and not game.revive(true) and h.revives == 2
-			and not game.can_play(), "L%d: возрождение сверх revive_max (возрождений %d)" % [lvl, h.revives])
-	_check(h.stars(game.hints.used) == 1, "L%d: звёзд после возрождения %d, ждали 1" % [lvl, h.stars(game.hints.used)])
+	_check(_hearts_panel_is(game, HeartsPanel.Offer.LIMIT) and not game.revive(false) and not game.revive(true)
+			and h.revives == 2 and not game.can_play(),
+			"L%d: возрождения исчерпаны — ждали «только Заново»: %s, возрождений %d" % [lvl, _hearts_panel_state(hp),
+			h.revives])
+	_check(h.stars(game.hints.used) == 1 and not game.wants_interstitial(),
+			"L%d: после возрождения звёзд %d (ждали 1), межстраничная на «Далее»: %s" % [lvl,
+			h.stars(game.hints.used), game.wants_interstitial()])
 
-	# Новая попытка — снова полные сердца, ни ошибок, ни возрождений.
+	# «Заново» из окна — новая попытка: снова полные сердца, ни ошибок, ни возрождений, окно закрыто.
+	hp.restart_button.pressed.emit()
+	await _frames(1)
+	_check(not hp.visible and h.left == n and h.mistakes == 0 and h.revives == 0 and not h.free_used
+			and game.can_play() and not game.hint_button.disabled and bar.left == n and game.wants_interstitial(),
+			"L%d: «Заново» из окна: сердец %d из %d, ошибок %d, возрождений %d, %s" % [lvl, h.left, n, h.mistakes,
+			h.revives, _hearts_panel_state(hp)])
+
+	# Реклама не показалась, бесплатное ещё можно — продолжить бесплатно.
+	if not _hearts_burn(game, lvl, n):
+		return
+	hp.continue_button.pressed.emit()
+	YSDK._handle_event("rew_close", null)
+	_check(not hp.visible and h.left == 1 and h.revives == 1 and h.free_used and game.can_play(),
+			"L%d: реклама не показалась — бесплатного продолжения нет: сердец %d, возрождений %d, %s" % [lvl, h.left,
+			h.revives, _hearts_panel_state(hp)])
+
+	# Последнее сердце сгорело, а блок вернулся уже под паузой — окно после паузы.
+	var mv := _find_dead_end_move(game)
+	if _check(not mv.is_empty(), "L%d: для ошибки под паузой не нашлось тупикового хода" % lvl):
+		_drop(game, mv[0], mv[1])
+		game.open_pause()
+		game.flush_mistake()
+		_check(h.is_out() and not hp.visible and game.pause_panel.visible,
+				"L%d: сердца кончились под паузой — окно поверх паузы: %s" % [lvl, _hearts_panel_state(hp)])
+		game.pause_panel.close_button.pressed.emit()
+		_check(not game.paused and _hearts_panel_is(game, HeartsPanel.Offer.AD) and not YSDK._gameplay_wanted,
+				"L%d: после паузы окна сердец нет: %s" % [lvl, _hearts_panel_state(hp)])
 	game.start_level(lvl)
 	await _frames(1)
-	_check(h.left == n and h.mistakes == 0 and h.revives == 0 and not h.free_used and game.can_play()
-			and not game.hint_button.disabled and bar.left == n and not game.toast.is_shown(),
-			"L%d: новая попытка после возрождений: сердец %d из %d, ошибок %d, возрождений %d, подпись: %s" % [lvl,
-			h.left, n, h.mistakes, h.revives, game.toast.is_shown()])
-	print("  сердца на L%d: %d ошибки — ходить нельзя, возрождение бесплатное и за рекламу, предел, новая попытка" % [
-			lvl, n])
+	_check(not hp.visible and h.left == n, "L%d: новый уровень — окно сердец осталось открытым" % lvl)
+	print("  сердца на L%d: %d ошибки — окно; бесплатно, только «Заново», реклама: закрыл / не показалась / досмотрел, " \
+			% [lvl, n] + "предел, «Заново», окно после паузы")
 
 
 func _find_dead_end_move(game: Game) -> Array:
@@ -6836,6 +6937,7 @@ func _stray_catchers(game: Game) -> Array[String]:
 	roots.append_array(game.tray.slots)
 	roots.append(game.win_panel)
 	roots.append(game.pause_panel)
+	roots.append(game.hearts_panel)
 	for node in game.find_children("*", "BaseButton", true, false):
 		roots.append(node as Control)
 	var res: Array[String] = []
@@ -7650,7 +7752,8 @@ func _test_board_rows() -> void:
 # --- 12. Качество (14.7) ---------------------------------------------------------
 
 ## Сердца (20.1a): правила Hearts — все случаи и сценарии tools/hearts_model.py (эталон tests/hearts_expected.txt):
-## сколько сердец на попытку (max_for), ошибки, подсказки, возрождение за рекламу и бесплатное (try_revive), звёзды.
+## сколько сердец на попытку (max_for), ошибки, подсказки, возрождение за рекламу и бесплатное (try_revive), звёзды;
+## окно «Сердца закончились» (20.1b): что предложить (HeartsPanel.offer_for) и что делать после рекламы (after_ad).
 func _test_hearts() -> void:
 	_section("Сердца: правила (tools/hearts_model.py)")
 	if not FileAccess.file_exists(HEARTS_EXPECTED_PATH):
@@ -7658,6 +7761,7 @@ func _test_hearts() -> void:
 		return
 	var n_max := 0
 	var n_run := 0
+	var n_win := 0
 	for raw_line in FileAccess.get_file_as_string(HEARTS_EXPECTED_PATH).split("\n", false):
 		var line := raw_line.strip_edges()
 		if line.is_empty() or line.begins_with("#"):
@@ -7673,8 +7777,18 @@ func _test_hearts() -> void:
 			var want := line.get_slice(" = ", 1)
 			var got_run := _hearts_run(f[2].to_int(), f[3].to_int(), f[4] == "1", f[5])
 			_check(got_run == want, "сердца, сценарий %s (%s): %s, модель: %s" % [f[1], f[5], got_run, want])
-	_check(n_max > 0 and n_run > 0, "в %s нет случаев max_for или сценариев" % HEARTS_EXPECTED_PATH)
-	print("  сердца: max_for — %d случаев, сценариев — %d" % [n_max, n_run])
+		elif f[0] == "W" and f.size() == 6:
+			n_win += 1
+			var offer: String = HeartsPanel.Offer.keys()[HeartsPanel.offer_for(f[1] == "1", f[2] == "1", f[3] == "1")]
+			_check(offer == f[5], "HeartsPanel.offer_for(возродиться %s, реклама %s, бесплатное %s) = %s, модель: %s" % [
+					f[1], f[2], f[3], offer, f[5]])
+		elif f[0] == "D" and f.size() == 6:
+			n_win += 1
+			var after: String = HeartsPanel.After.keys()[HeartsPanel.after_ad(f[1] == "1", f[2], f[3] == "1")]
+			_check(after == f[5], "HeartsPanel.after_ad(награда %s, итог %s, бесплатное %s) = %s, модель: %s" % [
+					f[1], f[2], f[3], after, f[5]])
+	_check(n_max > 0 and n_run > 0 and n_win > 0, "в %s нет случаев max_for, сценариев или окна" % HEARTS_EXPECTED_PATH)
+	print("  сердца: max_for — %d случаев, сценариев — %d, окно — %d" % [n_max, n_run, n_win])
 
 
 ## Сценарий модели сердец, как run() в tools/hearts_model.py: n_max сердец, флаги revive_max и allow_free

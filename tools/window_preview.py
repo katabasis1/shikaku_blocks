@@ -1365,6 +1365,119 @@ def render_panel(mode="settings", w=720, h=1280, vibration=True, off=(), dev=Tru
     return cv.image(), card
 
 
+
+# ---------------------------------------------------------------- окно «Сердца закончились» (20.1b)
+
+HEARTS_GD = "scenes/ui/hearts_panel.gd"
+HEARTS_TSCN = "scenes/ui/hearts_panel.tscn"
+HEARTS_BAR_GD = "scenes/game/hearts_bar.gd"
+
+
+def hearts_offer_text(offer):
+    """HeartsPanel.offer_text: msgid пояснения по предложению (AD / FREE / NO_AD / LIMIT) — из кода."""
+    src = open(os.path.join(ROOT, HEARTS_GD), encoding="utf-8").read()
+    body = src.split("static func offer_text(", 1)[1].split("\n\n", 1)[0]
+    texts = dict(re.findall(r"Offer\.(\w+):\s*\n\s*return \"([^\"]+)\"", body))
+    texts["LIMIT"] = re.findall(r"^\treturn \"([^\"]+)\"", body, re.M)[-1]
+    return texts[offer]
+
+
+def draw_heart_empty(cv, x, y, s):
+    """HeartsBar._draw, сгоревшее сердце: контур heart_points в квадрате s с левым верхом (x, y), цвет EMPTY."""
+    k = s / 32.0
+    top_k, hh = gd(HEARTS_BAR_GD, "HEART_TOP"), gd(HEARTS_BAR_GD, "HEART_H")
+    n = int(gd(HEARTS_BAR_GD, "POINTS"))
+    top = y + (s - hh * k) * 0.5
+    pts = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        px = 16.0 * math.sin(t) ** 3
+        py = 13.0 * math.cos(t) - 5.0 * math.cos(2 * t) - 2.0 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((x + (px + 16.0) * k, top + (top_k - py) * k))
+    x0, y0 = int(math.floor(x)) - 1, int(math.floor(y)) - 1
+    W, H = int(math.ceil(s)) + 3, int(math.ceil(s)) + 3
+    im = Image.new("L", (W * 4, H * 4), 0)
+    ImageDraw.Draw(im).polygon([((a - x0) * 4, (b - y0) * 4) for a, b in pts], fill=255)
+    cov = np.asarray(im.resize((W, H), Image.BOX), dtype=float) / 255.0
+    col = re.search(r"const EMPTY := Color\(([^)]*)\)", open(os.path.join(ROOT, HEARTS_BAR_GD),
+                                                           encoding="utf-8").read()).group(1)
+    r, g, b, a = (float(v) for v in col.split(","))
+    layer = np.zeros((H, W, 4))
+    layer[..., :3] = (r, g, b)
+    layer[..., 3] = a * cov
+    cv.over(x0, y0, layer)
+
+
+def render_hearts(offer="AD", w=720, h=1280, locale="ru", note=""):
+    """HeartsPanel поверх игры (20.1b): затемнение Dim, карточка CandyCard как у паузы (ширина CARD_W, высота по
+    содержимому от середины экрана), заголовок (ужимается — SettingsPanel.title_size), пустые сердца (HeartsBar,
+    3 шт.), пояснение (по предложению или note — msgid NOTE_CLOSED / NOTE_FAILED), «ПРОДОЛЖИТЬ / +1 СЕРДЦЕ» (AD —
+    со значком ad.png, FREE — без), «ЗАНОВО» (второстепенная светлая или главная зелёная), «В меню».
+    Тень значка рекламы не рисуется."""
+    tr = po(locale)
+    t = lambda s: tr.get(s, s) or s       # noqa: E731
+    N = tscn_nodes(HEARTS_TSCN)
+    cv, _ = render_game(w, h)
+    dim = tuple(float(x) for x in re.match(r"Color\((.*)\)", N["Dim"]["color"]).group(1).split(","))
+    cv.rgb = cv.rgb * (1 - dim[3]) + np.asarray(dim[:3]) * dim[3]
+
+    src = open(os.path.join(ROOT, "theme", "main_theme.tres"), encoding="utf-8").read()
+    box = re.search(r'id="candy_card"\]\n(.*?)\n\n', src, re.S).group(1)
+    marg = {k: float(v) for k, v in re.findall(r"content_margin_(\w+) = ([\d.]+)", box)}
+    pad_l, pad_r, pad_t, pad_b = (marg.get(k, 0.0) for k in ("left", "right", "top", "bottom"))
+    sep = tscn_int(N["Box"], "theme_override_constants/separation", 4)
+    head_h = tscn_size(N["Title"])[1]
+    card_w = max(gd(SET_GD, "CARD_W"), -2 * float(N["Card"]["offset_left"]))
+    text_room = max(tscn_size(N["Text"])[0], card_w - pad_l - pad_r)
+    card_w = max(card_w, text_room + pad_l + pad_r)
+    inner = card_w - pad_l - pad_r
+    text_font = font_of("CardText")
+    cfs = int(th("CardText", "font_sizes", "font_size", 30))
+    text = t(note or hearts_offer_text(offer))
+    lines = wrap_greedy(text, text_font, cfs, text_room)
+    text_h = len(lines) * line_h(cfs) + (len(lines) - 1) * LABEL_SPACING
+    row_w, row_h = tscn_size(N["HeartsRow"])
+    cont = offer in ("AD", "FREE")
+    cont_w, cont_h = tscn_size(N["ContinueButton"])
+    rw, rh = (gd(HEARTS_GD, "RESTART_MINOR") if cont else gd(HEARTS_GD, "RESTART_MAIN"))
+    home_h = max(tscn_size(N["HomeButton"])[1], line_h(th("CardLink", "font_sizes", "font_size", 26)))
+    rows = [row_h, text_h] + ([cont_h] if cont else []) + [rh, home_h]
+    content_h = head_h + sum(rows) + sep * len(rows)
+    card_h = max(-2 * float(N["Card"]["offset_top"]), pad_t + content_h + pad_b)
+    cx0, cy0 = w / 2 - card_w / 2, h / 2 - card_h / 2
+    card = (cx0, cy0, card_w, card_h)
+    draw_card(cv, card, "violet", head_h)
+
+    title = t("СЕРДЦА ЗАКОНЧИЛИСЬ")
+    mid = cx0 + pad_l + inner / 2
+    label(cv, title, mid, cy0 + pad_t + head_h / 2, "CardTitle", size=panel_title_size(title))
+    y = cy0 + pad_t + head_h + sep
+    hs, gap = gd(HEARTS_BAR_GD, "HEART"), gd(HEARTS_BAR_GD, "GAP")
+    for k in range(3):
+        draw_heart_empty(cv, mid - row_w / 2 + k * (hs + gap), y + (row_h - hs) / 2, hs)
+    y += row_h + sep
+    for i, line in enumerate(lines):
+        label(cv, line, mid, y + i * (line_h(cfs) + LABEL_SPACING) + line_h(cfs) / 2, "CardText")
+    y += text_h + sep
+    if cont:
+        bx = mid - cont_w / 2
+        draw_pill_button(cv, (bx, y, cont_w, cont_h), t("ПРОДОЛЖИТЬ"), "green", subtitle=t("+1 СЕРДЦЕ"))
+        if offer == "AD":
+            b = N["ContinueAdBadge"]
+            l, tp, r, bt = (float(b.get(k, 0.0)) for k in ("offset_left", "offset_top", "offset_right",
+                                                            "offset_bottom"))
+            sp.draw_png(cv, "ad", bx + cont_w + l, y + tp, r - l, bt - tp)
+        y += cont_h + sep
+    if cont:
+        draw_pill_button(cv, (mid - rw / 2, y, rw, rh), t("ЗАНОВО"), "light", int(gd(HEARTS_GD, "MINOR_FONT")))
+    else:
+        draw_pill_button(cv, (mid - rw / 2, y, rw, rh), t("ЗАНОВО"), "green")
+    y += rh + sep
+    draw_link(cv, mid, y + home_h / 2, home_h, t("В меню"), "home")
+    return cv.image(), {"card": tuple(round(v) for v in card), "lines": len(lines),
+                        "title_size": panel_title_size(title)}
+
+
 # ---------------------------------------------------------------- всплывающие сообщения (13.5d)
 
 def toast_style():
@@ -1536,7 +1649,7 @@ def background_checks():
 
 def main(argv):
     every = not any(a in argv for a in ("--win", "--panels", "--toasts", "--menu", "--map", "--leaders", "--lab",
-                                        "--background"))
+                                        "--background", "--hearts"))
     if every or "--background" in argv:
         lines, items = background_checks()
         for x in lines:
@@ -1610,6 +1723,18 @@ def main(argv):
         img, info = render_menu(720, 1280, level=12, locale="ru", lab=True)
         items.append(("Меню, отладочная сборка", img))
         print(sheet(items, "G19_3_lab.png"))
+    if every or "--hearts" in argv:
+        items = []
+        note_closed = gd_str(HEARTS_GD, "NOTE_CLOSED")
+        for offer, w, h, loc, note, title in (("AD", 720, 1280, "ru", "", "AD"),
+                                              ("FREE", 720, 1280, "en", "", "FREE (en)"),
+                                              ("LIMIT", 720, 1280, "tr", "", "LIMIT (tr)"),
+                                              ("AD", 720, 1280, "ru", note_closed, "NOTE_CLOSED"),
+                                              ("AD", 2276, 1280, "ru", "", "AD, альбом 16:9")):
+            img, info = render_hearts(offer, w, h, locale=loc, note=note)
+            items.append((title, img))
+            print("сердца %s %d×%d %s: %s" % (offer, w, h, loc, info))
+        print(sheet(items, "G20_1b_hearts.png", scale=0.5))
 
 
 if __name__ == "__main__":

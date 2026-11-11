@@ -1,103 +1,159 @@
 class_name HeartsPanel
 extends Control
-## Окно «Сердца закончились» (20.1b, PLAN 20.1). Вид — как у паузы (SettingsPanel, docs/STYLE.md, раздел 11):
-## карточка CandyCard с фиолетовой шапкой, заголовок в шапке ужимается под ширину (SettingsPanel.title_size), текст,
-## зелёная таблетка «ПРОДОЛЖИТЬ» со второй строкой «+1 СЕРДЦЕ», светлая «ЗАНОВО» и ссылка «⌂ В меню». Появление —
-## анимация show сцены (фон темнеет, карточка ×0,9 → 1,03 → 1).
-## Что предлагает (open, Offer — решает Game.revive_offer):
-##   AD   — продолжить за рекламу: на «ПРОДОЛЖИТЬ» значок рекламы (правила Яндекса 4.5.1: до показа видно, что это
-##          реклама и что за неё дают);
-##   FREE — бесплатно (рекламы нет или не показалась, бесплатное продолжение уровня ещё не взято): без значка;
-##   NONE — продолжить нельзя (возрождения уровня исчерпаны, флаг revive_max): «ПРОДОЛЖИТЬ» нет, «ЗАНОВО» — главная
-##          (зелёная, 400×110).
-## note — строка под текстом: почему продолжения не было (рекламу закрыли до награды, реклама не загрузилась).
-## set_waiting(true) — ждём рекламу: кнопки выключены. Логика (сердце, реклама, Метрика) — в Game: окно только
-## показывает и сообщает о нажатиях. Esc окно гасит, а не закрывает: выбор нужен (ходить без сердец нельзя).
+## Окно «Сердца закончились» (20.1b, PLAN 20.1): карточка как у паузы (SettingsPanel — CandyCard с фиолетовой
+## шапкой шириной SettingsPanel.CARD_W, заголовок ужимается под ширину — SettingsPanel.title_size; появление —
+## AnimationPlayer «show»: фон темнеет, карточка ×0,9 → 1,03 → 1). Под шапкой — пустые сердца попытки (HeartsBar),
+## пояснение и кнопки:
+##   «ПРОДОЛЖИТЬ / +1 СЕРДЦЕ» — зелёная таблетка 400×110; за рекламу — со значком рекламы в правом верхнем углу
+##     (ad.png, как у подсказки за рекламу: MODERATION 4.5.1 — кнопка говорит, что это реклама и что за неё дают);
+##   «ЗАНОВО» — светлая 400×80, а когда продолжить нельзя — главная (зелёная 400×110);
+##   «⌂ В меню» — ссылка CardLink, как в паузе (без неё из окна не уйти: пауза под ним не нажимается).
+## Окно ничего не решает само: что предложить — offer_for (Game.hearts_offer по Hearts и YSDK), что делать после
+## рекламы — after_ad. Правила — модель tools/hearts_model.py (строки W и D эталона tests/hearts_expected.txt).
+## Пока идёт реклама (set_busy) кнопки выключены. Esc окно не закрывает: поле без сердец стоит, выбор — кнопками.
+## Звук клика у «Продолжить» и «В меню» играет окно, у «Заново» — Game (как у кнопки «Заново» в игре).
 
-signal revive_pressed
+signal continue_pressed
 signal restart_pressed
 signal home_pressed
 
-enum Offer { NONE, AD, FREE }
+## Что предложить: AD — продолжить за рекламу; FREE — рекламы нет, бесплатное продолжение ещё можно (флаг
+## revive_free_on_fail, раз за попытку); NO_AD — рекламы нет и бесплатного нет; LIMIT — возрождения исчерпаны
+## (флаг revive_max) — только «Заново».
+enum Offer { AD, FREE, NO_AD, LIMIT }
+## Что делать, когда реклама за сердце закончилась: REVIVE — награда пришла, возродить; NOTE_CLOSED — закрыл
+## рекламу раньше награды: окно остаётся, пояснение NOTE_CLOSED; FREE — реклама не показалась (нет, ошибка, не
+## открылась за YSDK.AD_OPEN_TIMEOUT_MS), бесплатное ещё можно — возродить бесплатно; NOTE_FAILED — не показалась,
+## а бесплатное уже брали: окно остаётся, пояснение NOTE_FAILED (можно попробовать ещё раз).
+enum After { REVIVE, NOTE_CLOSED, FREE, NOTE_FAILED }
 
-const RESTART_MAIN := Vector2(400, 110)
-const RESTART_SECOND := Vector2(400, 80)
-const RESTART_SECOND_FONT := 30
+## Пояснения после рекламы (переводятся при показе).
+const NOTE_CLOSED := "Сердце дают, если досмотреть рекламу до конца"  # msgid
+const NOTE_FAILED := "Реклама не загрузилась. Попробуй ещё раз или начни заново"  # msgid
+## «Заново»: второстепенная (есть «Продолжить») и главная (нет) — размер; шрифт второстепенной.
+const RESTART_MINOR := Vector2(400.0, 80.0)
+const RESTART_MAIN := Vector2(400.0, 110.0)
+const MINOR_FONT := 30
+## Тень значка рекламы — как у значков CandyButton (форма видимой части ad.png — как у значка подсказки в game.tscn).
+const BADGE_SHAPE := Vector2(0.9375, 0.8984)
+const BADGE_ROUND := 0.6
 
 @onready var anim: AnimationPlayer = $AnimationPlayer
 @onready var card: CandyCard = %Card
 @onready var title_label: Label = %Title
+@onready var hearts_row: HeartsBar = %HeartsRow
 @onready var text_label: Label = %Text
-@onready var note_label: Label = %Note
-@onready var revive_button: PillButton = %ReviveButton
-@onready var ad_badge: TextureRect = %ReviveAdBadge
+@onready var continue_button: PillButton = %ContinueButton
+@onready var ad_badge: TextureRect = %ContinueAdBadge
 @onready var restart_button: PillButton = %RestartButton
 @onready var home_button: Button = %HomeButton
 
-var offer: int = Offer.NONE
-var waiting: bool = false
+var offer: int = Offer.AD
+## Ждём рекламу: кнопки выключены.
+var busy := false
+## Пояснение вместо обычного (msgid; "" — обычное по предложению).
+var note := ""
 
 
 func _ready() -> void:
 	hide()
-	revive_button.pressed.connect(_on_revive_pressed)
+	continue_button.pressed.connect(_on_continue_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	home_button.pressed.connect(_on_home_pressed)
 	card.resized.connect(_on_card_resized)
-	# Значок рекламы — как на кнопках-конфетах (CandyButton): своя мягкая тень вниз.
-	SoftShadow.attach(ad_badge, ad_badge.get_meta(&"badge_shape", Vector2.ONE), float(ad_badge.get_meta(&"badge_round", 1.0)),
-			Vector2(0.0, CandyButton.BADGE_SHADOW_OFFSET), CandyButton.BADGE_SHADOW_BLUR, CandyButton.BADGE_SHADOW_STRENGTH)
+	ad_badge.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	SoftShadow.attach(ad_badge, BADGE_SHAPE, BADGE_ROUND, Vector2(0.0, CandyButton.BADGE_SHADOW_OFFSET),
+			CandyButton.BADGE_SHADOW_BLUR, CandyButton.BADGE_SHADOW_STRENGTH)
 
 
-## Показывает окно (или обновляет открытое): what — Offer, note — строка под текстом ("" — нет).
-func open(what: int, note: String = "") -> void:
-	var was := visible
-	offer = what
-	waiting = false
-	note_label.text = note
-	note_label.visible = not note.is_empty()
-	_update_texts()
-	_apply_offer()
-	_sync_disabled()
+## Что предложить: возродиться нельзя (возрождения исчерпаны) — LIMIT; реклама есть — AD; нет — FREE, если
+## бесплатное продолжение ещё можно взять, иначе NO_AD. Модель — offer_for в tools/hearts_model.py.
+static func offer_for(can_revive: bool, ad_available: bool, can_free: bool) -> int:
+	if not can_revive:
+		return Offer.LIMIT
+	if ad_available:
+		return Offer.AD
+	return Offer.FREE if can_free else Offer.NO_AD
+
+
+## Реклама за сердце закончилась: rewarded — награда пришла, result — YSDK.last_ad_result ("rewarded", "closed",
+## "not_shown", "timeout"), can_free — бесплатное продолжение ещё можно (Hearts.can_continue_free). Модель — after_ad
+## в tools/hearts_model.py.
+static func after_ad(rewarded: bool, result: String, can_free: bool) -> int:
+	if rewarded:
+		return After.REVIVE
+	if result == "closed":
+		return After.NOTE_CLOSED
+	return After.FREE if can_free else After.NOTE_FAILED
+
+
+## Пояснение под сердцами для предложения o (msgid; переводится при показе).
+static func offer_text(o: int) -> String:
+	match o:
+		Offer.AD:
+			return "Посмотри рекламу и продолжи с того же места"  # msgid
+		Offer.FREE:
+			return "Держи ещё одно сердце и продолжай с того же места"  # msgid
+		Offer.NO_AD:
+			return "Реклама сейчас недоступна. Начни заново — с полными сердцами"  # msgid
+	return "Продолжений на этом уровне больше нет. Начни заново — с полными сердцами"  # msgid
+
+
+## Показать окно: предложение as_offer, сердец на попытку n_hearts (все пустые).
+func open(as_offer: int, n_hearts: int) -> void:
+	busy = false
+	note = ""
+	hearts_row.custom_minimum_size = HeartsBar.row_size(n_hearts)
+	hearts_row.show_hearts(0, n_hearts)
+	hearts_row.visible = n_hearts > 0
+	set_offer(as_offer)
 	show()
 	_on_card_resized()
-	if not was:
-		anim.play(&"show")
+	anim.play(&"show")
 
 
 func close() -> void:
-	waiting = false
+	busy = false
 	hide()
 
 
-## Ждём ответа рекламы: кнопки выключены.
-func set_waiting(on: bool) -> void:
-	waiting = on
-	_sync_disabled()
+## Сменить предложение в открытом окне (реклама не показалась, бесплатное взяли).
+func set_offer(as_offer: int) -> void:
+	offer = as_offer
+	_sync()
 
 
-func _apply_offer() -> void:
-	revive_button.visible = offer != Offer.NONE
+## Пояснение вместо обычного: msgid (NOTE_CLOSED, NOTE_FAILED) или "" — обычное по предложению.
+func set_note(msgid: String) -> void:
+	note = msgid
+	_sync()
+
+
+## Ждём рекламу (on) — кнопки выключены.
+func set_busy(on: bool) -> void:
+	busy = on
+	_sync()
+
+
+## Можно продолжить: кнопка «Продолжить» есть.
+func can_continue() -> bool:
+	return offer == Offer.AD or offer == Offer.FREE
+
+
+func _sync() -> void:
+	var cont := can_continue()
+	continue_button.visible = cont
 	ad_badge.visible = offer == Offer.AD
-	var main := offer == Offer.NONE
-	restart_button.tone = PillButton.Tone.GREEN if main else PillButton.Tone.LIGHT
-	restart_button.custom_minimum_size = RESTART_MAIN if main else RESTART_SECOND
-	if main:
-		restart_button.remove_theme_font_size_override(&"font_size")  # размер темы PillButton
+	restart_button.tone = PillButton.Tone.LIGHT if cont else PillButton.Tone.GREEN
+	restart_button.custom_minimum_size = RESTART_MINOR if cont else RESTART_MAIN
+	if cont:
+		restart_button.add_theme_font_size_override(&"font_size", MINOR_FONT)
 	else:
-		restart_button.add_theme_font_size_override(&"font_size", RESTART_SECOND_FONT)
-	_update_restart_text()
-
-
-## «ЗАНОВО» — главная кнопка (продолжить нельзя), «Начать заново» — вторая, под «ПРОДОЛЖИТЬ».
-func _update_restart_text() -> void:
-	restart_button.text = tr("ЗАНОВО") if offer == Offer.NONE else tr("Начать заново")
-
-
-func _sync_disabled() -> void:
-	revive_button.disabled = waiting
-	restart_button.disabled = waiting
-	home_button.disabled = waiting
+		restart_button.remove_theme_font_size_override(&"font_size")
+	continue_button.disabled = busy
+	restart_button.disabled = busy
+	home_button.disabled = busy
+	_update_texts()
 
 
 func _update_texts() -> void:
@@ -105,43 +161,41 @@ func _update_texts() -> void:
 	title_label.text = title
 	title_label.add_theme_font_size_override(&"font_size",
 			SettingsPanel.title_size(title_label.get_theme_font(&"font"), title))
-	text_label.text = tr("Продолжи с этого места или начни уровень заново") if offer != Offer.NONE \
-			else tr("Начни уровень заново — ты уже знаешь, где ловушка")
-	revive_button.subtitle = tr("+1 СЕРДЦЕ")
-	_update_restart_text()
-
-
-func _notification(what: int) -> void:
-	# Язык сменился, пока окно открыто, — тексты из кода заново (note — уже переведённая строка от Game).
-	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and visible:
-		_update_texts()
+	continue_button.subtitle = tr("+1 СЕРДЦЕ")
+	text_label.text = tr(note if not note.is_empty() else offer_text(offer))
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Esc не закрывает окно (без сердец ходить нельзя) и не открывает паузу под ним.
+	# Esc окно не закрывает (выбор — кнопками), но и до игры не доходит: пауза под окном не открывается.
 	if is_visible_in_tree() and event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
 
 
-func _on_card_resized() -> void:
-	card.pivot_offset = card.size * 0.5
+func _notification(what: int) -> void:
+	# Язык сменился, пока окно открыто, — перерисовать тексты, заданные из кода.
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and visible:
+		_update_texts()
 
 
-func _on_revive_pressed() -> void:
-	if waiting:
+func _on_continue_pressed() -> void:
+	if busy:
 		return
 	Audio.play(Audio.CLICK)
-	revive_pressed.emit()
+	continue_pressed.emit()
 
 
 func _on_restart_pressed() -> void:
-	if waiting:
+	if busy:
 		return
-	restart_pressed.emit()  # звук клика — у Game._on_restart_pressed
+	restart_pressed.emit()
 
 
 func _on_home_pressed() -> void:
-	if waiting:
+	if busy:
 		return
 	Audio.play(Audio.CLICK)
 	home_pressed.emit()
+
+
+func _on_card_resized() -> void:
+	card.pivot_offset = card.size * 0.5

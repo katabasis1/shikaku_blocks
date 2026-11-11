@@ -16,7 +16,9 @@ extends Control
 ## можно ли после него заполнить поле. Нельзя — ошибка: сердце сгорает сразу, блок встаёт на место, трескается
 ## (14.6g) и сам возвращается в своё гнездо (MISTAKE_RETURN; любое нажатие на лоток или подсказка — сразу). Так
 ## тупик на поле не задерживается, и подсказка всегда ищет решение от текущей расстановки. Сердца кончились — поле
-## стоит до возрождения (revive) или «Заново»; окно с выбором — 20.1b.
+## стоит, окно «Сердца закончились» (20.1b, HeartsPanel): «Продолжить» за рекламу (+1 сердце, поле как есть —
+## revive), бесплатно, если реклама не показалась (раз за попытку), «Заново» или «В меню». После возрождения на этом
+## уровне межстраничной на «Далее» нет.
 
 const MENU_SCENE := "res://scenes/menu/menu.tscn"
 ## level уровня «Лаборатории» (19.3): дальше всех уровней с обучением и страховкой.
@@ -69,6 +71,7 @@ const MISTAKE_RETURN := 0.9
 @onready var win_backdrop: WinBackdrop = %WinBackdrop
 @onready var background: Background = %Background
 @onready var pause_panel: SettingsPanel = %PausePanel
+@onready var hearts_panel: HeartsPanel = %HeartsPanel
 @onready var tutorial_hand: TutorialHand = %TutorialHand
 @onready var drag: DragController = $DragController
 @onready var hints: HintController = $HintController
@@ -121,6 +124,8 @@ var win_at: float = WIN_SHOW_AT
 var _return_tween: Tween
 ## После «Далее» ждём межстраничную рекламу.
 var _next_pending: bool = false
+## Окно «Сердца закончились» ждёт рекламу за сердце (20.1b).
+var _revive_pending: bool = false
 ## Уровень уже запускался в этой сцене: смена темы фона дальше — плавно (19.5c), первая — сразу.
 var _started := false
 ## Карточка начала главы (19.5d, ChapterCard): создаётся в _ready между FxLayer и DragLayer (несомый блок, рука и
@@ -141,6 +146,9 @@ func _ready() -> void:
 	pause_button.pressed.connect(_on_pause_pressed)
 	pause_panel.closed.connect(_on_resume)
 	pause_panel.home_pressed.connect(_on_home_pressed)
+	hearts_panel.continue_pressed.connect(_on_hearts_continue)
+	hearts_panel.restart_pressed.connect(_on_restart_pressed)
+	hearts_panel.home_pressed.connect(_on_home_pressed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	win_panel.next_pressed.connect(_on_next_pressed)
 	win_panel.replay_pressed.connect(_on_replay_pressed)
@@ -211,6 +219,8 @@ func _begin_level(n: int, is_daily: bool, data: Dictionary, mechanic: String, in
 	hints.reset()
 	juice.reset()
 	_next_pending = false
+	_revive_pending = false
+	hearts_panel.close()
 	if paused:
 		paused = false
 		pause_panel.hide()
@@ -339,7 +349,7 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
-	if k == null or not k.pressed or k.echo or paused:
+	if k == null or not k.pressed or k.echo or paused or hearts_panel.visible:
 		return
 	# Esc — пауза. Открытое окно паузы само ловит Esc раньше и закрывается.
 	if event.is_action_pressed(&"ui_cancel"):
@@ -583,17 +593,76 @@ func flush_mistake() -> void:
 		_on_hearts_out()
 
 
-## Сердца кончились: ходить и брать подсказку нельзя (can_play), пауза и «Заново» работают. До окна 20.1b
-## («Продолжить» за рекламу / «Заново») — подпись и прыжок кнопки «Заново».
+## Сердца кончились: ходить и брать подсказку нельзя (can_play) — окно «Сердца закончились» (20.1b). Открыта
+## пауза (ошибочный блок вернулся по таймеру уже под ней) — окно после паузы (_on_resume).
 func _on_hearts_out() -> void:
 	drag.cancel()
-	toast.show_text(tr("Сердца кончились — начни заново"), 0.0)
-	Fx.hop(restart_button)
+	coach.postpone()
 	update_hud()
+	if not paused:
+		open_hearts_panel()
 
 
-## Возрождение (20.1b вызовет из окна): +1 сердце, поле как есть; звёзд за уровень — 1. free — бесплатное
-## продолжение (реклама не показалась). false — сейчас нельзя (сердца не кончились или возрождения исчерпаны).
+## Окно «Сердца закончились»: что предложить — hearts_offer. GameplayAPI на это время стоит.
+func open_hearts_panel() -> void:
+	YSDK.gameplay_stop()
+	hearts_panel.open(hearts_offer(), hearts.max_hearts)
+
+
+## Что предложить в окне (HeartsPanel.offer_for): возродиться ещё можно (флаг revive_max), реклама есть, бесплатное
+## продолжение ещё можно (флаг revive_free_on_fail, раз за попытку).
+func hearts_offer() -> int:
+	return HeartsPanel.offer_for(hearts.can_revive(YSDK.revive_max()), YSDK.is_rewarded_available(),
+			hearts.can_continue_free(YSDK.revive_free_on_fail()))
+
+
+## «Продолжить» в окне: за рекламу — показать её (кнопки окна ждут ответа), без рекламы — бесплатно.
+func _on_hearts_continue() -> void:
+	if _revive_pending or finished or not hearts.is_out():
+		return
+	match hearts_panel.offer:
+		HeartsPanel.Offer.AD:
+			_revive_pending = true
+			hearts_panel.set_busy(true)
+			YSDK.show_rewarded(_on_revive_ad.bind(session))
+		HeartsPanel.Offer.FREE:
+			_revive_from_panel(true)
+
+
+## Реклама за сердце закончилась (HeartsPanel.after_ad): награда — возрождение; не показалась — бесплатно, пока
+## можно; закрыл раньше награды или бесплатное уже брали — окно остаётся с пояснением.
+func _on_revive_ad(rewarded: bool, at_session: int) -> void:
+	if at_session != session:
+		return  # уровень уже перезапущен или сменился
+	_revive_pending = false
+	hearts_panel.set_busy(false)
+	if finished or not hearts.is_out():
+		return
+	var after := HeartsPanel.after_ad(rewarded, YSDK.last_ad_result,
+			hearts.can_continue_free(YSDK.revive_free_on_fail()))
+	match after:
+		HeartsPanel.After.REVIVE:
+			_revive_from_panel(false)
+		HeartsPanel.After.FREE:
+			_revive_from_panel(true)
+		_:
+			hearts_panel.set_offer(hearts_offer())
+			if hearts_panel.offer == HeartsPanel.Offer.AD:
+				hearts_panel.set_note(HeartsPanel.NOTE_CLOSED if after == HeartsPanel.After.NOTE_CLOSED
+						else HeartsPanel.NOTE_FAILED)
+
+
+## Возрождение из окна: +1 сердце, окно закрывается, игра идёт дальше. Не вышло — окно с новым предложением.
+func _revive_from_panel(free: bool) -> void:
+	if not revive(free):
+		hearts_panel.set_offer(hearts_offer())
+		return
+	hearts_panel.close()
+	YSDK.gameplay_start()
+
+
+## Возрождение: +1 сердце, поле как есть; звёзд за уровень — 1. free — бесплатное продолжение (реклама не
+## показалась). false — сейчас нельзя (сердца не кончились или возрождения исчерпаны). Окно — _revive_from_panel.
 func revive(free := false) -> bool:
 	if finished or not hearts.try_revive(YSDK.revive_max(), free, YSDK.revive_free_on_fail()):
 		return false
@@ -776,8 +845,17 @@ func _on_next_pressed() -> void:
 	# Окно победы остаётся на экране (кнопки выключены) и закрывает поле, пока
 	# ждём рекламу: иначе «Заново» / «Домой» успевали сработать до её показа.
 	_next_pending = true
+	# После возрождения на этом уровне (20.1b, PLAN 20.1) межстраничной нет — сразу дальше.
+	if not wants_interstitial():
+		_go_to_next_level.call_deferred(session)
+		return
 	# Межстраничная реклама (YSDK сам следит за частотой; вне Яндекса — сразу колбэк).
 	YSDK.show_interstitial(_go_to_next_level.bind(session))
+
+
+## Межстраничная на «Далее» после этой попытки: не после возрождения (20.1b, PLAN 20.1).
+func wants_interstitial() -> bool:
+	return hearts.revives == 0
 
 
 func _go_to_next_level(from_session: int) -> void:
@@ -818,7 +896,7 @@ func _on_home_pressed() -> void:
 # --- Пауза ----------------------------------------------------------------------
 
 func _on_pause_pressed() -> void:
-	if finished or paused or _next_pending:
+	if finished or paused or _next_pending or hearts_panel.visible:
 		return
 	Audio.play(Audio.CLICK)
 	open_pause()
@@ -835,5 +913,9 @@ func open_pause() -> void:
 
 func _on_resume() -> void:
 	paused = false
-	if not finished:
+	if finished:
+		return
+	if hearts.is_out():
+		open_hearts_panel()  # сердца кончились, пока пауза была открыта
+	else:
 		YSDK.gameplay_start()

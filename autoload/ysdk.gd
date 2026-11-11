@@ -290,6 +290,10 @@ var _ad_callback: Callable = Callable()
 var _ad_opened: bool = false
 var _ad_rewarded: bool = false
 var _ad_requested_ms: int = 0
+## Итог последней рекламы за награду (как в Метрике: "rewarded", "closed", "not_shown", "timeout") — колбэк
+## show_rewarded читает его, если важно, почему награды нет (20.1b: закрыл рекламу за сердце раньше — окно остаётся,
+## реклама не показалась — бесплатное продолжение).
+var last_ad_result: String = ""
 
 var _lb_cache: Dictionary = {}    # таблица -> {"at": мс, "data": ответ}
 var _lb_pending: Dictionary = {}  # таблица -> true, пока ждём ответа
@@ -363,9 +367,10 @@ func show_interstitial(on_done: Callable) -> void:
 	_bridge.showInterstitial()
 
 
-## Реклама за награду. on_done(rewarded: bool) вызывается всегда.
+## Реклама за награду. on_done(rewarded: bool) вызывается всегда; почему без награды — last_ad_result.
 func show_rewarded(on_done: Callable) -> void:
 	if not is_available or _ad_kind != AD_NONE:
+		last_ad_result = "not_shown"
 		on_done.call_deferred(false)
 		return
 	_start_ad(AD_REWARDED, on_done)
@@ -398,6 +403,8 @@ func _finish_ad(result: String = "", shown: bool = true) -> void:
 	if result.is_empty():
 		result = ad_result(kind, _ad_opened and shown, rewarded)
 	Analytics.ad(kind, result)
+	if kind == AD_REWARDED:
+		last_ad_result = result
 	if not cb.is_valid():
 		return
 	if kind == AD_REWARDED:

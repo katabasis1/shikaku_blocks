@@ -38,6 +38,14 @@ func show_hearts(n_left: int, n_max: int) -> void:
 	queue_redraw()
 
 
+## Размер ряда из n сердец полного размера (HEART, промежуток GAP), px: окно «Сердца закончились» (20.1b) ставит
+## ряд по центру.
+static func row_size(n: int) -> Vector2:
+	if n <= 0:
+		return Vector2.ZERO
+	return Vector2(HEART * n + GAP * (n - 1), HEART)
+
+
 ## Сторона квадрата одного сердца при текущем размере полосы, px.
 func heart_size() -> float:
 	if max_hearts <= 0:

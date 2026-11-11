@@ -21,8 +21,32 @@ msgstr "Süper!"
 msgid "Невероятно!"
 msgstr "İnanılmaz!"
 
-msgid "Сердца кончились — начни заново"
-msgstr "Canın kalmadı — baştan başla"
+msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
+msgstr "CANLAR BİTTİ"
+
+msgid "+1 СЕРДЦЕ"
+msgstr "+1 CAN"
+
+msgid "ЗАНОВО"
+msgstr "BAŞTAN BAŞLA"
+
+msgid "Посмотри рекламу и продолжи с того же места"
+msgstr "Reklam izle ve kaldığın yerden devam et"
+
+msgid "Держи ещё одно сердце и продолжай с того же места"
+msgstr "İşte bir can daha — kaldığın yerden devam et"
+
+msgid "Реклама сейчас недоступна. Начни заново — с полными сердцами"
+msgstr "Reklam şu an kullanılamıyor. Canların dolu olarak baştan başla"
+
+msgid "Продолжений на этом уровне больше нет. Начни заново — с полными сердцами"
+msgstr "Bu seviyede devam hakkın kalmadı. Canların dolu olarak baştan başla"
+
+msgid "Сердце дают, если досмотреть рекламу до конца"
+msgstr "Canı almak için reklamı sonuna kadar izle"
+
+msgid "Реклама не загрузилась. Попробуй ещё раз или начни заново"
+msgstr "Reklam yüklenmedi. Tekrar dene ya da baştan başla"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "İpucu için reklamı izle"

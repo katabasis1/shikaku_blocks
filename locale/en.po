@@ -21,8 +21,32 @@ msgstr "Super!"
 msgid "Невероятно!"
 msgstr "Incredible!"
 
-msgid "Сердца кончились — начни заново"
-msgstr "Out of hearts — start over"
+msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
+msgstr "OUT OF HEARTS"
+
+msgid "+1 СЕРДЦЕ"
+msgstr "+1 HEART"
+
+msgid "ЗАНОВО"
+msgstr "START OVER"
+
+msgid "Посмотри рекламу и продолжи с того же места"
+msgstr "Watch an ad and continue where you left off"
+
+msgid "Держи ещё одно сердце и продолжай с того же места"
+msgstr "Here's one more heart — continue where you left off"
+
+msgid "Реклама сейчас недоступна. Начни заново — с полными сердцами"
+msgstr "Ads aren't available right now. Start over with full hearts"
+
+msgid "Продолжений на этом уровне больше нет. Начни заново — с полными сердцами"
+msgstr "No more continues on this level. Start over with full hearts"
+
+msgid "Сердце дают, если досмотреть рекламу до конца"
+msgstr "You get the heart only if you watch the ad to the end"
+
+msgid "Реклама не загрузилась. Попробуй ещё раз или начни заново"
+msgstr "The ad didn't load. Try again or start over"
 
 msgid "Подсказка откроется после просмотра рекламы"
 msgstr "Watch the ad to unlock the hint"
