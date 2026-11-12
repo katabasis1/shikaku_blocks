@@ -10,10 +10,12 @@ star_semitones — звёзды до-ми-соль) и приглушением 
     python3 tools/sfx_preview.py      # docs/sfx/preview_level.mp3, preview_level_phone.mp3, all_sounds.mp3
 
 preview_level.mp3        — уровень целиком: подъём, поворот, постановки с нотами (серия растёт), промах, линия,
-                           тупик и отмена, подсказка, линия сильнее, последний блок — удар победы, звёзды, джингл,
-                           «Далее»; музыка приглушается под победу и возвращается.
+                           ошибка (20.1a–c: тупиковый ход — «у-у» и «пуф» сердца, блок сам возвращается; отмены
+                           нет), подсказка, линия сильнее, последний блок — удар победы, звезда (3 − ошибка −
+                           подсказка = 1), джингл, «Далее»; музыка приглушается под победу и возвращается.
 preview_level_phone.mp3  — то же «через динамик телефона»: без низа ниже 300 Гц и верха выше 8 кГц, моно.
-all_sounds.mp3           — все звуки по очереди, без музыки (каждый на своей громкости из audio.tscn).
+all_sounds.mp3           — все 15 звуков по очереди, без музыки (каждый на своей громкости из audio.tscn; Undo
+                           с 20.1a — только подтверждение сброса прогресса).
 
 Нужны numpy, scipy и ffmpeg (декод ogg, кодирование mp3).
 """
@@ -75,6 +77,9 @@ WIN_SHOW_AT = const_num(GAME, "WIN_SHOW_AT")
 STARS_AT = const_num(PANEL, "STARS_AT")
 STAR_STEP = const_num(PANEL, "STAR_STEP")
 JINGLE_AT = const_num(PANEL, "JINGLE_AT")
+MISTAKE_WARN = const_num(GAME, "MISTAKE_WARN")                       # ошибка: трещина и «у-у» (20.1a)
+HEART_CRACK = float(re.search(r"@export var heart_crack_time := ([\d.]+)", JUICE).group(1))  # «пуф» сердца
+STARS_GOT = 3 - 1 - 1                                                   # Hearts.stars: 3 − ошибка − подсказка
 CONST_NAME = dict((n, c) for c, n in re.findall(r'^const ([A-Z_]+) := &"(\w+)"', AUDIO, re.M))
 
 
@@ -203,11 +208,11 @@ def level():
     t = 5.3
     m.play("Pick", t); m.place(t + 0.5, 3, line_power=0)                      # линия: «Отлично!»
     t = 6.9
-    m.play("Pick", t); m.place(t + 0.5, 2)                                    # серия выше
-    m.reset_streak(); m.play("Error", t + 0.5 + 0.45, 0.0)                    # тупик: «у-у» через 0,45 с
-    t = 8.6
-    m.play("Undo", t); m.reset_streak()                                       # отмена
-    t = 10.6                                                                  # пауза дольше окна серии
+    m.play("Pick", t); m.place(t + 0.5, 2)                                    # ошибка: блок лёг (удар, нота)
+    m.reset_streak()                                                          # серию обрывает ошибка (20.1a)
+    m.play("Error", t + 0.5 + MISTAKE_WARN, 0.0)                              # трещина: «у-у» через 0,45 с
+    m.play("Puff", t + 0.5 + MISTAKE_WARN + HEART_CRACK)                      # сердце «пуф» (20.1c), блок сам
+    t = 10.6                                                                  # назад; пауза дольше окна серии
     m.play("Hint", t, 0.0); m.place(t + FLOAT, 2)                             # подсказка: блок долетел
     t = 12.3
     m.play("Pick", t); m.place(t + 0.45, 4, line_power=1)                     # две линии сразу
@@ -219,7 +224,7 @@ def level():
     m.place(hit, 3, last=True)                                                # последний блок: удар победы
     m.play("Win", hit, 0.0)
     panel = hit + WIN_SHOW_AT
-    for i in range(2):                                                        # 2 звезды (отмена и подсказка)
+    for i in range(STARS_GOT):                                                # звёзды: 3 − ошибка − подсказка
         m.play("Star", panel + STARS_AT + STAR_STEP * i + STAR_SLAM, 0.0, 2 ** (STARS[i] / 12))
     m.play("Jingle", panel + JINGLE_AT, 0.0)
     m.play("Click", panel + 3.2)                                              # «Далее»
@@ -227,8 +232,10 @@ def level():
 
 
 def all_sounds():
-    order = ["Click", "Pick", "Rotate", "Miss", "Place", "Note", "Undo", "Error", "Hint", "Line", "Star",
-             "Jingle", "Win"]
+    order = ["Click", "Pick", "Rotate", "Miss", "Place", "Note", "Undo", "Error", "Puff", "Heartbeat", "Hint",
+             "Line", "Star", "Jingle", "Win"]
+    missing = sorted(set(WAV) - set(order))
+    assert not missing, "all_sounds: звуки не в списке: %s" % missing
     m = Mix(sum(len(WAV[n]) / SR + 0.6 for n in order) + 0.5)
     t = 0.4
     for n in order:
