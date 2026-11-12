@@ -7,7 +7,7 @@
 | Что | Файлы | В Pod | В архиве |
 |---|---|---|---|
 | Эталон стиля (`docs/STYLE.md`) | `A3B_game.png`, `A3B_win.png`, `A3B_desktop.png`, `sheet_a3b.png` | да | да |
-| Кадры проверок «как в Godot» (этапы 13–14, 18–19) | `G13_*.png`, `G14_*.png`, `G18_*.png`, `G19_*.png` | да | нет (`ZIP_SKIP` в `tools/save.py`) |
+| Кадры проверок «как в Godot» (этапы 13–14, 16, 18–20) | `G13_*.png`, `G14_*.png`, `G16_*.png`, `G18_*.png`, `G19_*.png`, `G20_*.png` | да | нет (`ZIP_SKIP` в `tools/save.py`) |
 | Описание | `README.md` | да | да |
 
 **Эталон не удалять и без нужды не перерисовывать.** С ним сравнивают свои кадры `tools/shader_preview.py` и
@@ -36,6 +36,8 @@
 | `G14_6_intro` | `python3 tools/intro_preview.py` | 15 с |
 | `G14_6_dead_hint` | `python3 tools/dead_hint_preview.py` | 30 с |
 | `G14_7_quality` | `python3 tools/quality_preview.py` | 5 с |
+| `G20_1b_hearts` (окно «Сердца закончились», 20.1b) | `python3 tools/window_preview.py --hearts` (входит и в запуск без ключей) | 15 с |
+| `G20_1_hearts` (полоса сердец, 20.1c; с 12.11 — иконки листа 7) | `python3 tools/window_preview.py --hearts-bar` (входит и в запуск без ключей) | 13 с |
 
 Проверено 07.10: все 21 кадр пересобираются, 16 — бит в бит с сохранёнными. `G13_1_*_bad`, `G13_2b_*` и
 `G13_2c_header` выходят другими: код поля и кнопок с тех пор менялся, сохранённые — снимок времени 13.1–13.2c.

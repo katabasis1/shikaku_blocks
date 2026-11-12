@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Этап 12.3g: нарезка листов иконок из нейросети (docs/icons/raw) в assets/icons/*.png 256×256.
 
-Листы — ChatGPT Image, 1536×1024, сетка 3×2 (листы 1–3), 4×2 (лист 5) и 5×2 (лист 6), docs/icons/PROMPTS.md:
+Листы — ChatGPT Image, 1536×1024, сетка 3×2 (листы 1–3), 4×2 (лист 5) и 5×2 (лист 6); лист 7 — 1536×864, 2×1
+(строк столько, сколько нужно на имена), docs/icons/PROMPTS.md:
   sheet1_game.png      pause, restart, undo / hint, home, settings
   sheet2_settings.png  music_on, sound_on, vibration_on / music_off, sound_off, vibration_off
   sheet3_items.png     star, star_empty, ad / hand, badge, slash
@@ -10,6 +11,8 @@
   sheet6_nodes.png     node_red, node_orange, node_yellow, node_sky, node_blue /
                        node_pink, node_magenta, node_green, node_violet, node_white
                        (10.10, белый фон; пустые кружки уровней карты и «Лаборатории», ячейка 307 × 512)
+  sheet7_hearts.png    heart, heart_empty
+                       (12.11, белый фон, 1536×864, сетка 2×1; сердца попытки 20.1c — как star / star_empty)
 
 Что делает с каждой ячейкой (512×512, у листа 6 — 307×512):
   1. альфа < 8 -> 0 (у ChatGPT вокруг иконок «дымка» с альфой 1–4, глазом не видна, но мешает);
@@ -56,6 +59,7 @@ SHEETS = [
                              "medal_bronze", "obstacle", "tint_frame", "rivet"]),
     ("sheet6_nodes.png", 5, ["node_red", "node_orange", "node_yellow", "node_sky", "node_blue",
                              "node_pink", "node_magenta", "node_green", "node_violet", "node_white"]),
+    ("sheet7_hearts.png", 2, ["heart", "heart_empty"]),
 ]
 NODES = ["node_red", "node_orange", "node_yellow", "node_sky", "node_blue",
          "node_pink", "node_magenta", "node_green", "node_violet", "node_white"]
@@ -67,6 +71,8 @@ SQUARES = {"obstacle", "tint_frame"}
 ## Кружки уровней (лист 6) — 192: в игре Ø 52–140 px, а градиенты сжимаются плохо (256 — ≈58 КБ на кружок, 192 — ≈38).
 SMALL = {"rivet": 64, "medal_gold": 128, "medal_silver": 128, "medal_bronze": 128, "lock": 128}
 SMALL.update({name: 192 for name in NODES})
+## Сердца попытки (HeartsBar) — не больше 56 px, при «пуфе» ×heart_puff_scale: хватает 128.
+SMALL.update({"heart": 128, "heart_empty": 128})
 ## Дырки внутри обводки (лист без альфы): точка в ячейке (x, y), откуда заливаются светлые пиксели.
 HOLES = {"lock": [(197, 222)], "tint_frame": [(200, 212)]}
 HOLE_LIGHT = 190   # «светлый» пиксель дырки: min(R, G, B) больше этого (белый и серая «шахматка» 221–235)
@@ -275,7 +281,8 @@ def main(argv):
             continue
         src = Image.open(path).convert("RGBA")
         arr = np.asarray(src)
-        cw, ch = src.width // cols, src.height // 2
+        rows = -(-len(names) // cols)
+        cw, ch = src.width // cols, src.height // rows
         for i, name in enumerate(names):
             r, c = divmod(i, cols)
             rgba, main_mask, touches = clean(arr[r * ch:(r + 1) * ch, c * cw:(c + 1) * cw], HOLES.get(name, ()))

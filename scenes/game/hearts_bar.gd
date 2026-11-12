@@ -3,9 +3,11 @@ extends Control
 ## Сердца попытки (20.1, PLAN 20.1) — на месте прежней кнопки «Отмена», слева в полосе действий (портрет и альбом;
 ## ряд пустых сердец в окне «Сердца закончились» — тот же класс). Слева направо max_hearts сердец. Без предела сердец
 ## (max 0: уровни со страховкой, «Лаборатория», флаг hearts = 0) — пусто. Нажатия не ловит.
-## Вид (20.1c, docs/STYLE.md, раздел 17) — мармелад, как у кнопок и блоков (STYLE 5): мягкая тень, губа, лицо
-## с градиентом сверху вниз, кайма, блик-серп на левой доле; сгоревшее — утопленная лунка со светлым кантом снизу.
-## Рисуется в _draw, без картинок; кадр — tools/window_preview.py --hearts-bar (G20_1_hearts.png).
+## Вид (20.1c, docs/STYLE.md, раздел 17) — иконки, как звёзды (star / star_empty): целое — пухлое мармеладное
+## heart.png (тёмная обводка, блик на левой доле, кончик снизу скруглён), сгоревшее — пустое гнездо heart_empty.png
+## (лиловый кант вокруг утопленной середины). Лист — docs/icons/raw/sheet7_hearts.png, нарезка — tools/cut_icons.py.
+## В _draw: мягкая тень по контуру SHAPE, картинка, трещина; кадр — tools/window_preview.py --hearts-bar
+## (G20_1_hearts.png).
 ## Движение (числа — JuiceConfig, группа «Сердца»):
 ##   сгорание — show_hearts заметил, что сердец меньше: heart_burn_delay сердце ещё целое (ждёт трещины ошибочного
 ##     блока), за heart_crack_time по нему бежит трещина, затем «пуф» (сигнал puffed — мягкий звук Puff даёт Game):
@@ -24,46 +26,26 @@ signal last_heart
 ## Сердце не больше HEART px (полоса действий — 96–100 px высотой); не влезают — меньше, промежуток GAP.
 const HEART := 56.0
 const GAP := 10.0
-## Цвет сердца — красно-розовый счётчика подсказок (STYLE 2.2, #FF4D6D); «конфета» — из него (STYLE 5).
+## Цвет сердца — красно-розовый счётчика подсказок (STYLE 2.2, #FF4D6D, как у heart.png): из него — трещина и искры.
 const COLOR := Color(1.0, 0.302, 0.427)
-## Лицо: сверху светлее на FACE_TOP, снизу темнее на FACE_BOTTOM (lightened / darkened); градиент — по высоте
-## квадрата сердца (у губы — тот же, что у лица над ней).
-const FACE_TOP := 0.3
-const FACE_BOTTOM := 0.07
-## Губа: то же сердце ниже на DEPTH стороны (у блока — 0,075 клетки), темнее на LIP_TOP сверху и LIP_BOTTOM снизу.
-const DEPTH := 0.075
-const LIP_TOP := 0.34
-const LIP_BOTTOM := 0.22
 ## Тень — SHADE, как у кнопок (STYLE 7): вниз на SHADOW_Y стороны, три слоя ×SHADOW_GROW (мягкий край), у слоя
 ## SHADOW.a — вместе ≈ 38 %.
 const SHADOW := Color(0.204, 0.086, 0.561, 0.15)
 const SHADOW_Y := 0.06
 const SHADOW_GROW: Array[float] = [1.0, 1.06, 1.12]
-## Кайма объёма: контур, ужатый до ×RIM_INSET, толщиной RIM_W стороны, темнее цвета на RIM_DARK, непрозрачность
-## RIM_ALPHA (STYLE 5: «тёмная кайма» по краю лица).
-const RIM_INSET := 0.92
-const RIM_W := 0.06
-const RIM_DARK := 0.14
-const RIM_ALPHA := 0.35
-## Блик-серп на левой доле: дуга вокруг GLINT_C (доли стороны от середины) радиусом GLINT_R, углы GLINT_FROM…
-## GLINT_TO (рад, 0 — вправо, −π/2 — вверх), толщина GLINT_W, белый GLINT_ALPHA.
-const GLINT_C := Vector2(-0.25, -0.2)
-const GLINT_R := 0.15
-const GLINT_FROM := -2.89
-const GLINT_TO := -1.82
-const GLINT_W := 0.055
-const GLINT_ALPHA := 0.55
-## Лунка сгоревшего: DEEP 30 % и светлый кант снизу (лунка на EDGE_Y стороны ниже — как кант лотка поля, STYLE 6).
-const EMPTY := Color(0.118, 0.043, 0.361, 0.3)
-const EMPTY_EDGE := Color(1.0, 1.0, 1.0, 0.16)
-const EDGE_Y := 0.03
-## Трещина: ломаные в долях стороны от середины (главная — от выемки к острию, две ветки), растут разом. Тёмная —
+## Целое сердце и гнездо сгоревшего (лист 7, PNG 128 px): сердце в PNG шириной 240/256 его стороны, по середине —
+## картинка в квадрате стороны s·PNG_K, видимое сердце — шириной s, высотой ≈ 0,82 s.
+const TEX: Texture2D = preload("res://assets/icons/heart.png")
+const TEX_EMPTY: Texture2D = preload("res://assets/icons/heart_empty.png")
+const PNG_K := 256.0 / 240.0
+## Трещина: ломаные в долях стороны от середины (главная — от выемки к низу, две ветки — по долям; всё внутри
+## обводки heart.png: обводка ≈ 0,04 стороны), растут разом. Тёмная —
 ## цвет сердца темнее на CRACK_DARK, толщиной CRACK_W стороны (не тоньше CRACK_MIN_W px); под ней светлый край
 ## CRACK_LIGHT, ниже на CRACK_LIT стороны.
 const CRACK := [
-	[Vector2(0.0, -0.2), Vector2(-0.06, -0.08), Vector2(0.05, 0.03), Vector2(-0.03, 0.15), Vector2(0.01, 0.27)],
-	[Vector2(-0.06, -0.08), Vector2(-0.18, -0.03), Vector2(-0.26, -0.07)],
-	[Vector2(0.05, 0.03), Vector2(0.19, 0.08)],
+	[Vector2(0.0, -0.24), Vector2(-0.07, -0.11), Vector2(0.06, 0.03), Vector2(-0.04, 0.18), Vector2(0.01, 0.34)],
+	[Vector2(-0.07, -0.11), Vector2(-0.21, -0.05), Vector2(-0.32, -0.1)],
+	[Vector2(0.06, 0.03), Vector2(0.22, 0.09)],
 ]
 const CRACK_DARK := 0.55
 const CRACK_W := 0.05
@@ -77,11 +59,18 @@ const SPARK_LIGHT := 0.35
 const BEAT_AT: Array[float] = [0.0, 0.22]
 const BEAT_POWER: Array[float] = [1.0, 0.6]
 const BEAT_LEN := 0.16
-## Точек на контуре сердца.
-const POINTS := 40
-## Кривая сердца x = 16 sin³t, y = 13 cos t − 5 cos 2t − 2 cos 3t − cos 4t: x в −16..16, y в −17..HEART_TOP.
-const HEART_TOP := 11.92
-const HEART_H := 28.92
+## Контур сердца heart.png (доли ширины сердца от его середины; 40 точек от выемки против часовой, симметричный) —
+## для тени. Снят с альфы PNG 256 px; новый лист 7 — снять заново (как — docs/icons/README.md, лист 7).
+const SHAPE := [
+	Vector2(0.000, -0.319), Vector2(-0.053, -0.362), Vector2(-0.117, -0.396), Vector2(-0.188, -0.410), Vector2(-0.262, -0.402),
+	Vector2(-0.330, -0.379), Vector2(-0.391, -0.339), Vector2(-0.441, -0.284), Vector2(-0.475, -0.221), Vector2(-0.494, -0.151),
+	Vector2(-0.498, -0.076), Vector2(-0.481, -0.005), Vector2(-0.455, 0.062), Vector2(-0.415, 0.122), Vector2(-0.369, 0.181),
+	Vector2(-0.317, 0.235), Vector2(-0.261, 0.289), Vector2(-0.202, 0.332), Vector2(-0.140, 0.369), Vector2(-0.074, 0.398),
+	Vector2(0.000, 0.410), Vector2(0.074, 0.398), Vector2(0.140, 0.369), Vector2(0.202, 0.332), Vector2(0.261, 0.289),
+	Vector2(0.317, 0.235), Vector2(0.369, 0.181), Vector2(0.415, 0.122), Vector2(0.455, 0.062), Vector2(0.481, -0.005),
+	Vector2(0.498, -0.076), Vector2(0.494, -0.151), Vector2(0.475, -0.221), Vector2(0.441, -0.284), Vector2(0.391, -0.339),
+	Vector2(0.330, -0.379), Vector2(0.262, -0.402), Vector2(0.188, -0.410), Vector2(0.117, -0.396), Vector2(0.053, -0.362),
+]
 
 ## Сколько сердец на попытку (0 — без предела, ничего не рисуем).
 var max_hearts: int = 0
@@ -111,6 +100,7 @@ var _beat_from := -1.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # PNG 128 px -> сердце 28–60 px
 	resized.connect(queue_redraw)
 	GameState.settings_changed.connect(_on_settings_changed)
 	set_process(false)
@@ -291,17 +281,18 @@ func heart_rect(k: int) -> Rect2:
 	return Rect2(Vector2(k * (s + GAP), (size.y - s) * 0.5), Vector2(s, s))
 
 
-## Контур сердца, вписанного в квадрат со стороной s и левым верхним углом at.
-static func heart_points(at: Vector2, s: float) -> PackedVector2Array:
+## Контур сердца шириной s с серединой c (SHAPE).
+static func shape_points(c: Vector2, s: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
-	var k := s / 32.0
-	var top := at.y + (s - HEART_H * k) * 0.5
-	for n in POINTS:
-		var t := TAU * n / POINTS
-		var x := 16.0 * pow(sin(t), 3.0)
-		var y := 13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)
-		pts.append(Vector2(at.x + (x + 16.0) * k, top + (HEART_TOP - y) * k))
+	for p: Vector2 in SHAPE:
+		pts.append(c + p * s)
 	return pts
+
+
+## Квадрат картинки сердца шириной s с серединой c (PNG шире сердца на поля, PNG_K).
+static func tex_rect(c: Vector2, s: float) -> Rect2:
+	var side := s * PNG_K
+	return Rect2(c - Vector2(side, side) * 0.5, Vector2(side, side))
 
 
 func _draw() -> void:
@@ -317,29 +308,18 @@ func _draw() -> void:
 			_draw_candy(center, s, st.x, st.y, st.z)
 
 
-## Лунка сгоревшего сердца с серединой c.
+## Гнездо сгоревшего сердца с серединой c (heart_empty.png, как пустая звезда; без тени — оно утоплено).
 func _draw_socket(c: Vector2, s: float) -> void:
-	var pts := heart_points(c - Vector2(s, s) * 0.5, s)
-	draw_colored_polygon(_moved(pts, 1.0, Vector2(0.0, maxf(1.5, EDGE_Y * s))), EMPTY_EDGE)
-	draw_colored_polygon(pts, EMPTY)
+	draw_texture_rect(TEX_EMPTY, tex_rect(c, s), false)
 
 
 ## Мармеладное сердце с серединой c: масштаб sc, непрозрачность a, трещина crack 0…1.
 func _draw_candy(c: Vector2, s: float, sc: float, a: float, crack: float) -> void:
 	draw_set_transform(c, 0.0, Vector2(sc, sc))
-	var pts := heart_points(-Vector2(s, s) * 0.5, s)
+	var pts := shape_points(Vector2.ZERO, s)
 	for g in SHADOW_GROW:
 		draw_colored_polygon(_moved(pts, g, Vector2(0.0, SHADOW_Y * s)), _fade(SHADOW, a))
-	draw_polygon(_moved(pts, 1.0, Vector2(0.0, DEPTH * s)),
-			_ramp(pts, s, COLOR.darkened(LIP_TOP), COLOR.darkened(LIP_BOTTOM), a))
-	draw_polygon(pts, _ramp(pts, s, COLOR.lightened(FACE_TOP), COLOR.darkened(FACE_BOTTOM), a))
-	var rim := _moved(pts, RIM_INSET, Vector2.ZERO)
-	rim.append(rim[0])
-	var rim_color := COLOR.darkened(RIM_DARK)
-	rim_color.a = RIM_ALPHA
-	draw_polyline(rim, _fade(rim_color, a), RIM_W * s, true)
-	draw_arc(GLINT_C * s, GLINT_R * s, GLINT_FROM, GLINT_TO, 12, _fade(Color(1.0, 1.0, 1.0, GLINT_ALPHA), a),
-			GLINT_W * s, true)
+	draw_texture_rect(TEX, tex_rect(Vector2.ZERO, s), false, Color(1.0, 1.0, 1.0, a))
 	if crack > 0.0:
 		_draw_crack(s, crack, a)
 	draw_set_transform(Vector2.ZERO)
@@ -390,15 +370,6 @@ static func _moved(pts: PackedVector2Array, k: float, by: Vector2) -> PackedVect
 	out.resize(pts.size())
 	for i in pts.size():
 		out[i] = pts[i] * k + by
-	return out
-
-
-## Цвета вершин: от top (верх квадрата сердца) к bottom (низ) по высоте точки, непрозрачность ×a.
-static func _ramp(pts: PackedVector2Array, s: float, top: Color, bottom: Color, a: float) -> PackedColorArray:
-	var out := PackedColorArray()
-	out.resize(pts.size())
-	for i in pts.size():
-		out[i] = _fade(top.lerp(bottom, clampf(pts[i].y / s + 0.5, 0.0, 1.0)), a)
 	return out
 
 

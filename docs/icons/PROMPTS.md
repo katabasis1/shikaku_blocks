@@ -255,3 +255,16 @@ Bottom row, left to right:
 разброс 1 px), правки в чате не понадобились. Нарезано в `assets/icons/` (`node_red` … `node_white`, 192 px),
 подключено в `MapPath` и `LabRow` вместо кругов кодом; закрытый уровень — белый кружок на 50 % с замком.
 Подробности — `docs/icons/README.md`, «Лист 6»; вид — `docs/STYLE.md`, 8, 11.2, 11.5, 14.
+
+## Лист 7. Сердца попытки (2)
+12.11, этап 20.1c: пользователь — сердца выбиваются из стиля (острый кончик, лунка хуже пустой звезды), «надо
+перерисовать». Сделано генератором картинок агента, эталон — `star.png` и `star_empty.png` рядом на белом
+(картинка-эталон в запрос), 16:9, 2K:
+```
+Game UI icon sheet, exactly two icons side by side on a pure flat white background (#FFFFFF), same size, evenly spaced, nothing else. Match the exact art style of the reference stars: casual mobile puzzle game, chunky "jelly candy" look, thick smooth dark outline, soft glossy volume, rounded inflated shapes.
+LEFT icon: a FULL heart, plump and chubby like the reference gold star — big round lobes, wide body, and a SOFT ROUNDED bottom tip (no sharp point at all, the bottom is a blunt rounded curve). Fill is a juicy coral red-pink (#FF4D6D) jelly with a lighter pink top and slightly deeper red bottom, a darker red-pink inner lip along the lower edge, a glossy white highlight streak and small dot on the upper-left lobe like the star, and a thick dark crimson-maroon outline (#6B0F24).
+RIGHT icon: an EMPTY heart slot in the exact style of the reference empty star — identical plump heart silhouette with rounded bottom, thick dark indigo outline (#2A0F7A), a raised soft lavender-purple rim (#8F6BF0) and a recessed flat inner area in medium purple (#7650E6) with a gentle gradient, like an empty socket waiting for a heart. No red on it.
+Flat front view, centered, no drop shadow, no text, no background elements, crisp clean edges.
+```
+Результат — `raw/sheet7_hearts.png` с первой попытки; нарезка — `heart`, `heart_empty` (128 px). Подробности —
+`docs/icons/README.md`, «Лист 7»; вид — `docs/STYLE.md`, 17.

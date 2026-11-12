@@ -465,8 +465,8 @@ func _test_assets() -> void:
 	var pngs: Array[String] = []
 	_list_files("res://assets/icons", "png", pngs)
 	# 10.10: +7 картинок листа 5 (замок, медали, плитка, рамка, заклёпка; кубок заменён) — всего 27;
-	# +10 кружков уровней листа 6 (node_*.png) — 37.
-	_check(pngs.size() >= 37, "PNG-иконок %d, нужно 37" % pngs.size())
+	# +10 кружков уровней листа 6 (node_*.png) — 37; 12.11: +2 сердца листа 7 (heart, heart_empty) — 39.
+	_check(pngs.size() >= 39, "PNG-иконок %d, нужно 39" % pngs.size())
 	for path in pngs:
 		_check(load(path) is Texture2D, "иконка не загружается: " + path)
 		var imp := ConfigFile.new()
@@ -7906,6 +7906,22 @@ func _hearts_bar_run(rm: bool) -> void:
 	var dt := 1.0 / 60.0
 	var bar := HeartsBar.new()
 	bar.size = Vector2(300, 96)
+	if not rm:
+		# Вид 12.11 (лист 7): иконки как у звёзд, контур тени — по ширине сердца и ниже середины к кончику.
+		var tex_ok := HeartsBar.TEX != null and HeartsBar.TEX_EMPTY != null \
+				and HeartsBar.TEX.get_width() == 128 and HeartsBar.TEX_EMPTY.get_width() == 128
+		_check(tex_ok, "сердца: иконки heart.png и heart_empty.png по 128 px")
+		var sp := HeartsBar.shape_points(Vector2.ZERO, 100.0)
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for q: Vector2 in sp:
+			lo = lo.min(q)
+			hi = hi.max(q)
+		_check(sp.size() == 40 and absf(hi.x - lo.x - 100.0) < 2.0 and absf(lo.x + hi.x) < 1.0
+				and absf(sp[0].x) < 0.5 and sp[0].y > lo.y + 5.0 and absf(sp[20].x) < 0.5
+				and absf(sp[20].y - hi.y) < 0.5,
+				"сердца: контур тени — ширина %.1f из 100, середина %.1f, выемка %s, низ %s"
+				% [hi.x - lo.x, (lo.x + hi.x) * 0.5, str(sp[0]), str(sp[20])])
 	bar.show_hearts(3, 3)
 	_check(not bar.is_processing() and not bar.is_burning() and bar.heart_state(0) == Vector3(1, 1, 0)
 			and bar.heart_state(2) == Vector3(1, 1, 0), "%s: новый уровень — не сразу целые (%s)" % [tag,

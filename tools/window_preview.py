@@ -1411,27 +1411,25 @@ def hb_crack():
             for row in re.findall(r"^\t\[(.*)\],?$", body, re.M)]
 
 
-def _lighter(c, t):
-    return tuple(v + (1.0 - v) * t for v in c[:3]) + (c[3] if len(c) > 3 else 1.0,)
-
-
 def _darker(c, t):
     return tuple(v * (1.0 - t) for v in c[:3]) + (c[3] if len(c) > 3 else 1.0,)
 
 
+def hb_shape():
+    """HeartsBar.SHAPE: контур heart.png (доли ширины сердца от середины) — для тени."""
+    body = _hb_src().split("const SHAPE := [", 1)[1].split("\n]", 1)[0]
+    return [tuple(float(x) for x in v.split(",")) for v in re.findall(r"Vector2\(([^)]*)\)", body)]
+
+
 def heart_local(s):
-    """HeartsBar.heart_points(−s/2·(1, 1), s): контур сердца вокруг его середины."""
-    k = s / 32.0
-    top_k, hh = gd(HEARTS_BAR_GD, "HEART_TOP"), gd(HEARTS_BAR_GD, "HEART_H")
-    n = int(gd(HEARTS_BAR_GD, "POINTS"))
-    top = -s / 2 + (s - hh * k) * 0.5
-    out = []
-    for i in range(n):
-        t = 2 * math.pi * i / n
-        px = 16.0 * math.sin(t) ** 3
-        py = 13.0 * math.cos(t) - 5.0 * math.cos(2 * t) - 2.0 * math.cos(3 * t) - math.cos(4 * t)
-        out.append((-s / 2 + (px + 16.0) * k, top + (top_k - py) * k))
-    return out
+    """HeartsBar.shape_points(0, s): контур сердца шириной s вокруг его середины."""
+    return [(x * s, y * s) for x, y in hb_shape()]
+
+
+def hb_png_k():
+    """HeartsBar.PNG_K: сторона картинки / ширина сердца."""
+    a, b = re.search(r"const PNG_K := ([\d.]+) / ([\d.]+)", _hb_src()).groups()
+    return float(a) / float(b)
 
 
 def hb_crack_part(line, part, s):
@@ -1489,8 +1487,24 @@ class HeartPaint:
         return self._cov(lambda d: d.arc((x - rr, y - rr, x + rr, y + rr), math.degrees(a0), math.degrees(a1),
                                          fill=255, width=max(1, round(w * self.sc * k))))
 
+    def png(self, name, s, alpha=1.0):
+        """draw_texture_rect(name.png, tex_rect(середина, s)) с непрозрачностью alpha: картинка ×SS, сглаживание
+        с премультипликацией."""
+        k = self.SS
+        n = max(1, int(round(s * hb_png_k() * self.sc * k)))
+        src = png_rgba(os.path.join(sp.ICONS, name + ".png")).resize((n, n), Image.LANCZOS)
+        big = Image.new("RGBA", (self.W * k, self.H * k), (0, 0, 0, 0))
+        big.alpha_composite(src, dest=(int(round((self.cx - self.x0) * k - n / 2)),
+                                       int(round((self.cy - self.y0) * k - n / 2))))
+        arr = np.asarray(big, dtype=float) / 255.0
+        arr[..., :3] *= arr[..., 3:4]
+        arr = arr.reshape(self.H, k, self.W, k, 4).mean(axis=(1, 3))
+        cov = arr[..., 3]
+        rgb = np.where(cov[..., None] > 1e-6, arr[..., :3] / np.maximum(cov[..., None], 1e-6), 0.0)
+        self.paint(cov, rgb, alpha)
+
     def paint(self, cov, color, alpha=1.0):
-        """color — (r, g, b[, a]) или массив (H, 1, 3) цветов по строкам."""
+        """color — (r, g, b[, a]) или массив (H, 1, 3) цветов по строкам / (H, W, 3) по пикселям."""
         col = np.asarray(color, dtype=float)
         rgb = col[..., :3] if col.ndim > 1 else col[:3]
         a = cov[..., None] * alpha * (col[3] if col.ndim == 1 and col.size > 3 else 1.0)
@@ -1514,16 +1528,14 @@ def _moved(pts, k, by):
 
 
 def draw_heart_socket(cv, cx, cy, s):
-    """HeartsBar._draw_socket: лунка DEEP со светлым кантом снизу (EMPTY_EDGE на EDGE_Y стороны ниже)."""
+    """HeartsBar._draw_socket: гнездо сгоревшего — heart_empty.png (как пустая звезда), без тени."""
     hp = HeartPaint(cx, cy, s)
-    pts = heart_local(s)
-    hp.paint(hp.poly(_moved(pts, 1.0, (0.0, max(1.5, gd(HEARTS_BAR_GD, "EDGE_Y") * s)))), gd(HEARTS_BAR_GD, "EMPTY_EDGE"))
-    hp.paint(hp.poly(pts), gd(HEARTS_BAR_GD, "EMPTY"))
+    hp.png("heart_empty", s)
     hp.done(cv)
 
 
 def draw_heart_candy(cv, cx, cy, s, sc=1.0, a=1.0, crack=0.0):
-    """HeartsBar._draw_candy: мармеладное сердце (тень ×3, губа, лицо, кайма, блик-серп, трещина crack 0…1)."""
+    """HeartsBar._draw_candy: тень ×3 по контуру SHAPE, heart.png, трещина crack 0…1."""
     g = lambda n: gd(HEARTS_BAR_GD, n)      # noqa: E731
     col = g("COLOR") + (1.0,) if len(g("COLOR")) == 3 else g("COLOR")
     hp = HeartPaint(cx, cy, s, sc)
@@ -1531,15 +1543,7 @@ def draw_heart_candy(cv, cx, cy, s, sc=1.0, a=1.0, crack=0.0):
     shadow = g("SHADOW")
     for k in hb_floats("SHADOW_GROW"):
         hp.paint(hp.poly(_moved(pts, k, (0.0, g("SHADOW_Y") * s))), shadow, a)
-    dy = g("DEPTH") * s
-    hp.paint(hp.poly(_moved(pts, 1.0, (0.0, dy))), hp.ramp(s, _darker(col, g("LIP_TOP")), _darker(col, g("LIP_BOTTOM")),
-                                                         dy), a)
-    hp.paint(hp.poly(pts), hp.ramp(s, _lighter(col, g("FACE_TOP")), _darker(col, g("FACE_BOTTOM"))), a)
-    rim = _darker(col, g("RIM_DARK"))[:3] + (g("RIM_ALPHA"),)
-    hp.paint(hp.line(_moved(pts, g("RIM_INSET"), (0.0, 0.0)), g("RIM_W") * s, closed=True), rim, a)
-    gc = g("GLINT_C")
-    hp.paint(hp.arc((gc[0] * s, gc[1] * s), g("GLINT_R") * s, g("GLINT_FROM"), g("GLINT_TO"), g("GLINT_W") * s),
-             (1.0, 1.0, 1.0, g("GLINT_ALPHA")), a)
+    hp.png("heart", s, a)
     if crack > 0.0:
         w = max(g("CRACK_MIN_W"), g("CRACK_W") * s)
         lit = (0.0, max(1.0, g("CRACK_LIT") * s))
