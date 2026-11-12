@@ -14,8 +14,11 @@ extends Control
 ##     сердце раздувается до ×heart_puff_scale и тает за heart_puff_time, искры его цвета (Juice, SPARKS);
 ##   последнее из нескольких бьётся «тук-тук» (BEAT_AT) раз в heart_beat_period с — после того, как догорело
 ##     предпоследнее (сигнал last_heart, раз — тихий удар сердца Heartbeat);
-##   возрождение (pop) — сердце вырастает из ×0 с дожимом за heart_pop_time.
-## «Меньше движения»: трещина сразу, сердце гаснет без раздувания и искр, появляется без роста, не бьётся (звуки те же).
+##   возрождение (pop) — сердце вырастает из ×0 с дожимом за heart_pop_time;
+##   урок сердец (greet, TutorialCoach, 20.1d) — целые сердца по очереди слева подпрыгивают: ×(1 + GREET) и назад
+##     по синусу за GREET_LEN с, следующее — через GREET_STEP с.
+## «Меньше движения»: трещина сразу, сердце гаснет без раздувания и искр, появляется без роста, не бьётся и не
+## подпрыгивает (звуки те же).
 ## Новый уровень и «Заново» (сердец больше или другой предел) — сразу, без анимаций.
 
 ## Сердце догорело — «пуф» (k — номер сердца слева, 0…).
@@ -59,6 +62,11 @@ const SPARK_LIGHT := 0.35
 const BEAT_AT: Array[float] = [0.0, 0.22]
 const BEAT_POWER: Array[float] = [1.0, 0.6]
 const BEAT_LEN := 0.16
+## Урок сердец (greet): подскок каждого целого сердца — на GREET от размера за GREET_LEN с, следующее — через
+## GREET_STEP с (три сердца — 0,56 с).
+const GREET := 0.25
+const GREET_LEN := 0.32
+const GREET_STEP := 0.12
 ## Контур сердца heart.png (доли ширины сердца от его середины; 40 точек от выемки против часовой, симметричный) —
 ## для тени. Снят с альфы PNG 256 px; новый лист 7 — снять заново (как — docs/icons/README.md, лист 7).
 const SHAPE := [
@@ -96,6 +104,8 @@ var _pop_k := -1
 var _pop_from := 0.0
 ## Миг, с которого бьётся последнее сердце (< 0 — не бьётся).
 var _beat_from := -1.0
+## Миг начала урока сердец — подскоков по очереди (< 0 — нет).
+var _greet_from := -1.0
 
 
 func _ready() -> void:
@@ -121,6 +131,7 @@ func show_hearts(n_left: int, n_max: int) -> void:
 		_burns.clear()
 		_puffed.clear()
 		_pop_k = -1
+		_greet_from = -1.0
 	else:
 		var at := _t + cfg().heart_burn_delay
 		for k in range(n_left, left):
@@ -141,6 +152,20 @@ func pop() -> void:
 	_pop_from = _t
 	set_process(true)
 	queue_redraw()
+
+
+## Урок сердец (TutorialCoach): целые сердца по очереди подпрыгивают. «Меньше движения» или сердец нет — ничего.
+func greet() -> void:
+	if left <= 0 or GameState.reduce_motion:
+		return
+	_greet_from = _t
+	set_process(true)
+	queue_redraw()
+
+
+## Идёт урок сердец (подскоки).
+func is_greeting() -> bool:
+	return _greet_from >= 0.0
 
 
 ## Сердце k ещё горит (трещина или «пуф»; до трещины — тоже).
@@ -188,6 +213,8 @@ func heart_state(k: int) -> Vector3:
 			sc = back_out(q)
 	if _beat_from >= 0.0 and k == left - 1 and not calm:
 		sc *= 1.0 + c.heart_beat * beat_shape(_t - _beat_from, c.heart_beat_period)
+	if _greet_from >= 0.0 and not calm:
+		sc *= 1.0 + GREET * greet_shape(_t - _greet_from - k * GREET_STEP)
 	return Vector3(sc, alpha, 0.0)
 
 
@@ -203,6 +230,8 @@ func _process(delta: float) -> void:
 			_burns.erase(k)
 	if _pop_k >= 0 and _t - _pop_from >= c.heart_pop_time:
 		_pop_k = -1
+	if _greet_from >= 0.0 and _t - _greet_from >= greet_time(left):
+		_greet_from = -1.0
 	_update_beat()
 	set_process(_moving())
 	queue_redraw()
@@ -230,7 +259,7 @@ func _update_beat() -> void:
 
 ## Нужны кадры: горит, растёт или бьётся (биение видно — без «Меньше движения» и при heart_beat > 0).
 func _moving() -> bool:
-	if not _burns.is_empty() or _pop_k >= 0:
+	if not _burns.is_empty() or _pop_k >= 0 or _greet_from >= 0.0:
 		return true
 	return _beat_from >= 0.0 and not GameState.reduce_motion and cfg().heart_beat > 0.0
 
@@ -250,6 +279,17 @@ static func beat_shape(t: float, period: float) -> float:
 		if x > 0.0 and x < 1.0:
 			v = maxf(v, BEAT_POWER[i] * sin(PI * x))
 	return v
+
+
+## Подскок урока сердец: 0…1 через t с после начала подскока этого сердца (синус за GREET_LEN; до и после — 0).
+static func greet_shape(t: float) -> float:
+	var x := t / GREET_LEN
+	return sin(PI * x) if x > 0.0 and x < 1.0 else 0.0
+
+
+## Сколько идёт урок сердец при n целых сердцах, с.
+static func greet_time(n: int) -> float:
+	return GREET_LEN + GREET_STEP * maxi(n - 1, 0)
 
 
 ## Рост с дожимом (как TRANS_BACK + EASE_OUT): 0 → чуть больше 1 → 1.

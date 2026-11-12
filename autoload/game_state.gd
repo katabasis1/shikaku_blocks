@@ -432,7 +432,9 @@ func _parse_save(data: Dictionary) -> Dictionary:
 	if version >= 5:
 		skills = int(data.get("tutorial", 0)) & Tutorial.ALL
 	elif int(data.get("level", 1)) > Tutorial.GUARD_LEVELS:
-		skills = Tutorial.ALL  # до v5 навыков не было: кто прошёл обучающие уровни, тот обучен
+		# До v5 навыков не было: кто прошёл обучающие уровни, тот обучен. Сердец (20.1d) тогда не было — их урок
+		# он ещё не видел.
+		skills = Tutorial.ALL & ~Tutorial.HEARTS
 	return {
 		"epoch": maxi(0, int(data.get("epoch", 0))),
 		"legacy": legacy,

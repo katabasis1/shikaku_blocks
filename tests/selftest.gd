@@ -1368,16 +1368,20 @@ func _test_tutorial_save() -> void:
 	GameState.tutorial = 0
 	GameState.load_game()
 	_check(GameState.tutorial == skills, "навыки потерялись после записи в файл: %d" % GameState.tutorial)
-	GameState.apply_save_data({"version": 5, "level": 1, "tutorial": 1024 | Tutorial.DRAG})
-	_check(GameState.tutorial == Tutorial.DRAG, "лишние биты навыков не отброшены: %d" % GameState.tutorial)
+	GameState.apply_save_data({"version": 5, "level": 1, "tutorial": 1024 | Tutorial.DRAG | Tutorial.HEARTS})
+	_check(GameState.tutorial == (Tutorial.DRAG | Tutorial.HEARTS),
+			"лишние биты навыков не отброшены или HEARTS (20.1d) потерян: %d" % GameState.tutorial)
 
-	# До v5 навыков не было: прошёл обучающие уровни — обучен, нет — учим с начала.
+	# До v5 навыков не было: прошёл обучающие уровни — обучен, нет — учим с начала. Урока сердец (HEARTS, 20.1d)
+	# тогда не было — его не засчитываем.
+	var old_skills := Tutorial.ALL & ~Tutorial.HEARTS
 	GameState.apply_save_data({"version": 4, "level": Tutorial.GUARD_LEVELS + 1})
-	_check(GameState.tutorial == Tutorial.ALL, "перенос v4 (уровень %d): навыки %d (ждали все)" % [Tutorial.GUARD_LEVELS + 1, GameState.tutorial])
+	_check(GameState.tutorial == old_skills, "перенос v4 (уровень %d): навыки %d (ждали все, кроме HEARTS)" % [
+			Tutorial.GUARD_LEVELS + 1, GameState.tutorial])
 	GameState.apply_save_data({"version": 4, "level": Tutorial.GUARD_LEVELS})
 	_check(GameState.tutorial == 0, "перенос v4 (уровень %d): навыки %d (ждали 0)" % [Tutorial.GUARD_LEVELS, GameState.tutorial])
 	GameState.apply_save_data({"version": 2, "level": 30, "total_score": 100})
-	_check(GameState.tutorial == Tutorial.ALL, "перенос v2 (уровень 30): навыки %d (ждали все)" % GameState.tutorial)
+	_check(GameState.tutorial == old_skills, "перенос v2 (уровень 30): навыки %d (ждали все, кроме HEARTS)" % GameState.tutorial)
 	GameState.reset_progress()
 	_check(GameState.tutorial == 0, "сброс прогресса не обнулил навыки")
 	print("  навыки: v5, облако (OR), JSON и файл, перенос v2–v4, сброс")
@@ -5157,13 +5161,40 @@ func _test_tutorial(game: Game) -> void:
 	coach.tick(TutorialCoach.REASON_HOLD + 0.1)
 	_check(label.text == coach.caption(), "L%d: причина не сменилась подписью навыка" % guard)
 
-	# Первый уровень без страховки: обучение кончилось — ни подписи, ни напутствий (07.10: «Дальше — сам!» убран).
+	# Уровни со страховкой — без сердец и без их урока (20.1d).
+	_check(not game.hearts.is_limited() and coach.hearts_lesson < 0.0 and not coach.hearts_shown,
+			"L%d: сердца %d или урок сердец ждёт (%.2f) на уровне со страховкой" % [guard, game.hearts.max_hearts,
+			coach.hearts_lesson])
+
+	# Первый уровень без страховки: подписи над полем нет (07.10: «Дальше — сам!» убран). Сердца (по флагам — с него)
+	# появляются впервые — урок сердец HEARTS (20.1d): через HEARTS_DELAY сообщение на HEARTS_HOLD, сердца по очереди
+	# подпрыгивают; навыка ещё нет — на «Заново» урок снова.
 	GameState.learn(Tutorial.DRAG | Tutorial.ROTATE | Tutorial.ONE_NUMBER)
 	game.start_level(guard + 1)
+	var hearts_on := game.hearts.is_limited()
+	coach.tick(TutorialCoach.HEARTS_DELAY * 0.5)
+	_check(not label.visible and not game.toast.is_shown(),
+			"L%d: подпись или сообщение раньше урока сердец («%s»)" % [guard + 1, game.toast.shown_text()])
 	for _k in 5:
 		coach.tick(0.5)
-	_check(not label.visible and not game.toast.is_shown(),
-			"L%d: напутствие или подпись после обучения («%s»)" % [guard + 1, game.toast.shown_text()])
+	var lesson := coach.hearts_text(game.hearts.max_hearts)
+	if hearts_on:
+		_check(coach.hearts_shown and game.toast.is_shown() and game.toast.shown_text().replace("\n", " ") == lesson
+				and game.hearts_bar.is_greeting() != GameState.reduce_motion and not GameState.has_skill(Tutorial.HEARTS),
+				"L%d: урок сердец — показан %s, сообщение «%s» (ждали «%s»), подскоки %s, навык уже есть %s" % [guard + 1,
+				coach.hearts_shown, game.toast.shown_text(), lesson, game.hearts_bar.is_greeting(),
+				GameState.has_skill(Tutorial.HEARTS)])
+		game.start_level(guard + 1)
+		_check(not coach.hearts_shown and is_equal_approx(coach.hearts_lesson, TutorialCoach.HEARTS_DELAY),
+				"L%d: «Заново» без навыка HEARTS — урок не ждёт (%.2f)" % [guard + 1, coach.hearts_lesson])
+	else:
+		_check(not game.toast.is_shown() and not coach.hearts_shown,
+				"L%d без сердец (флаги): урок сердец или напутствие («%s»)" % [guard + 1, game.toast.shown_text()])
+	var hearts_ru := ["У тебя одно сердце: ошибка сожжёт его", "У тебя 3 сердца: ошибка сжигает одно",
+			"У тебя 5 сердец: ошибка сжигает одно"]
+	var hearts_got := [coach.hearts_text(1), coach.hearts_text(3), coach.hearts_text(5)]
+	if TranslationServer.get_locale().begins_with("ru"):
+		_check(hearts_got == hearts_ru, "урок сердец: тексты на 1, 3, 5 сердец — %s" % str(hearts_got))
 	coach.countdown = 0.0
 	coach.tick(0.016)
 	_check(not hand.visible, "рука появилась на уровне %d (только 1–%d)" % [guard + 1, guard])
@@ -5178,14 +5209,44 @@ func _test_tutorial(game: Game) -> void:
 			dead_lvl = lvl
 			break
 	if _check(dead_lvl > 0, "не нашлось уровня с тупиковым ходом после обучения"):
+		var limited := game.hearts.is_limited()
 		_drop(game, dead[0], dead[1])
 		coach.countdown = 0.0
 		coach.tick(0.5)
 		_check(game.has_mistake() and not hand.visible and game.board.modulate == Color.WHITE,
 				"L%d: первая ошибка — рука или притушенное поле (урок отмены убран в 20.1a)" % dead_lvl)
+		# Сердце сгорело — урок сердец пройден (20.1d), ждавший показа урок отменён: сообщение — про ошибку.
+		_check(GameState.has_skill(Tutorial.HEARTS) == limited and coach.hearts_lesson < 0.0 and not coach.hearts_shown,
+				"L%d: первое сгоревшее сердце — навык HEARTS %s (ждали %s), урок ждёт %.2f, показан %s" % [dead_lvl,
+				GameState.has_skill(Tutorial.HEARTS), limited, coach.hearts_lesson, coach.hearts_shown])
 		game.flush_mistake()
 		coach.tick(0.016)
 		_check(not game.has_mistake() and not hand.visible, "L%d: ошибочный блок не вернулся или появилась рука" % dead_lvl)
+		if limited:
+			game.start_level(guard + 1)
+			for _k in 5:
+				coach.tick(0.5)
+			_check(not coach.hearts_shown and not game.toast.is_shown(),
+					"L%d: урок сердец снова после навыка HEARTS («%s»)" % [guard + 1, game.toast.shown_text()])
+
+	# Урок сердец засчитан и победой на уровне с сердцами; задача дня — с сердцами и уроком, если его ещё не было
+	# (по флагам может прийти раньше уровня 4); «Лаборатория» — без сердец и урока.
+	GameState.tutorial &= ~Tutorial.HEARTS
+	game.start_level(guard + 1)
+	if game.hearts.is_limited():
+		coach.on_level_complete()
+		_check(GameState.has_skill(Tutorial.HEARTS) and coach.hearts_lesson < 0.0,
+				"L%d: победа на уровне с сердцами — навык HEARTS не засчитан" % [guard + 1])
+	GameState.tutorial &= ~Tutorial.HEARTS
+	game.start_level(DailyChallenge.level_for_date(DailyChallenge.current_date_key()), true)
+	_check(game.hearts.is_limited() == (YSDK.hearts() > 0) and (coach.hearts_lesson > 0.0) == game.hearts.is_limited(),
+			"задача дня: сердец %d, урок сердец ждёт %.2f" % [game.hearts.max_hearts, coach.hearts_lesson])
+	var lab_ok := not LabLevels.get_level(LabLevels.mechanics()[0], 1).is_empty()
+	if lab_ok:
+		game.start_lab(LabLevels.mechanics()[0], 1)
+		_check(not game.hearts.is_limited() and coach.hearts_lesson < 0.0,
+				"«Лаборатория»: сердец %d, урок сердец ждёт %.2f" % [game.hearts.max_hearts, coach.hearts_lesson])
+	GameState.learn(Tutorial.HEARTS)
 
 	# Долгий простой на уровнях HINT_FROM..HINT_TO — пульс подсказки, пока ей не пользовались.
 	game.start_level(Tutorial.HINT_FROM)
@@ -5203,7 +5264,7 @@ func _test_tutorial(game: Game) -> void:
 	coach.tick(0.016)
 	_check(not coach.hint_offered, "подсказку предлагают тому, кто ей уже пользовался")
 	GameState.reset_progress()
-	print("  обучение: навыки 1–%d, рука, подпись и причины, уровень %d без напутствий, первая ошибка без урока, подсказка" % [
+	print("  обучение: навыки 1–%d, рука, подпись и причины, уровень %d — урок сердец, первая ошибка без урока отмены, подсказка" % [
 			guard, guard + 1])
 
 
@@ -5681,10 +5742,10 @@ func _test_analytics() -> void:
 	# Навык обучения: цель один раз на навык, вне уровня — "menu" (попытку, если её оставил прошлый раздел, закрываем).
 	Analytics.run_end(&"exit", -1, -1)
 	GameState.reset_progress()
-	GameState.learn(Tutorial.UNDO)
-	GameState.learn(Tutorial.UNDO)
+	GameState.learn(Tutorial.HEARTS)
+	GameState.learn(Tutorial.HEARTS)
 	_check(Analytics.count("tutorial_step") == 1
-			and Analytics.last("tutorial_step").get("params", {}) == {"tutorial_step": {"undo": "menu"}},
+			and Analytics.last("tutorial_step").get("params", {}) == {"tutorial_step": {"hearts": "menu"}},
 			"навык обучения: целей %d, последняя %s" % [Analytics.count("tutorial_step"), str(Analytics.last("tutorial_step"))])
 	GameState.reset_progress()
 	Analytics.journal.clear()
@@ -7672,8 +7733,10 @@ func _test_toast(game: Game) -> void:
 			and font != null and font.resource_path == FONT_PATH and fs == 30
 			and label.get_theme_color(&"font_color").is_equal_approx(Color.WHITE),
 			"текст сообщения не ToastText (Nunito 800, 30, белый, строки режет Toast)")
-	# = TOAST_TEXTS в tools/layout_model.py (20.1a: подписи про отмену убраны вместе с ней)
-	var msgs: Array[String] = ["Подсказка откроется после просмотра рекламы", "Так остальные блоки не поместятся"]
+	# = TOAST_TEXTS в tools/layout_model.py (20.1a: подписи про отмену убраны вместе с ней; 20.1d: урок сердец)
+	var msgs: Array[String] = ["Подсказка откроется после просмотра рекламы", "Так остальные блоки не поместятся",
+			"У тебя одно сердце: ошибка сожжёт его", "У тебя %d сердца: ошибка сжигает одно",
+			"У тебя %d сердец: ошибка сжигает одно"]
 	var line_h := font.get_height(fs)
 	var pad := t.get_theme_stylebox(&"panel").get_minimum_size()
 	var loc := TranslationServer.get_locale()
@@ -7925,6 +7988,30 @@ func _hearts_bar_run(rm: bool) -> void:
 	bar.show_hearts(3, 3)
 	_check(not bar.is_processing() and not bar.is_burning() and bar.heart_state(0) == Vector3(1, 1, 0)
 			and bar.heart_state(2) == Vector3(1, 1, 0), "%s: новый уровень — не сразу целые (%s)" % [tag,
+			str(bar.heart_state(2))])
+	# Урок сердец (greet, 20.1d): по очереди слева подпрыгивают до ×(1 + GREET), всё — за greet_time;
+	# «Меньше движения» — нет.
+	bar.greet()
+	var peaks: Array[float] = [1.0, 1.0, 1.0]
+	var peak_at: Array[float] = [0.0, 0.0, 0.0]
+	var tg := 0.0
+	while bar.is_greeting() and tg < 3.0:
+		bar._process(dt)
+		tg += dt
+		for k in 3:
+			if bar.heart_scale(k) > peaks[k]:
+				peaks[k] = bar.heart_scale(k)
+				peak_at[k] = tg
+	if rm:
+		_check(is_zero_approx(tg) and not bar.is_processing(), "%s: урок сердец — подскоки при «Меньше движения»" % tag)
+	else:
+		var top := 1.0 + HeartsBar.GREET * 0.95
+		_check(peaks[0] >= top and peaks[1] >= top and peaks[2] >= top and peak_at[0] < peak_at[1]
+				and peak_at[1] < peak_at[2] and tg <= HeartsBar.greet_time(3) + dt * 1.5,
+				"%s: урок сердец — подскоки %s в %s с, кончились через %.2f с (ждали по очереди до ×%.2f, %.2f с)" % [
+				tag, str(peaks), str(peak_at), tg, 1.0 + HeartsBar.GREET, HeartsBar.greet_time(3)])
+	_check(not bar.is_greeting() and not bar.is_processing() and bar.heart_state(0) == Vector3(1, 1, 0)
+			and bar.heart_state(2) == Vector3(1, 1, 0), "%s: после урока сердца не в покое (%s)" % [tag,
 			str(bar.heart_state(2))])
 	var puffs: Array[int] = []
 	var beats := [0]

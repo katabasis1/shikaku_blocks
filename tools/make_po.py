@@ -22,6 +22,10 @@ STRINGS = {
     # Сердца (20.1a): отмены хода нет — тексты «Отмени ход» убраны. Окно «Сердца закончились» (20.1b, hearts_panel):
     # заголовок, вторая строка «Продолжить», «Заново», пояснения по предложению и после рекламы.
     "СЕРДЦА ЗАКОНЧИЛИСЬ": ("OUT OF HEARTS", "CANLAR BİTTİ"),
+    # Урок сердец (20.1d, tutorial_coach.hearts_text): число — флаг hearts, 1–5 («сердце», «сердца», «сердец»).
+    "У тебя одно сердце: ошибка сожжёт его": ("You have one heart: a mistake will burn it", "Bir canın var: bir hata onu yakar"),
+    "У тебя %d сердца: ошибка сжигает одно": ("You have %d hearts: a mistake burns one", "%d canın var: her hata birini yakar"),
+    "У тебя %d сердец: ошибка сжигает одно": ("You have %d hearts: a mistake burns one", "%d canın var: her hata birini yakar"),
     "+1 СЕРДЦЕ": ("+1 HEART", "+1 CAN"),
     "ЗАНОВО": ("START OVER", "BAŞTAN BAŞLA"),
     "Посмотри рекламу и продолжи с того же места": (

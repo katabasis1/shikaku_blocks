@@ -24,6 +24,15 @@ msgstr "Incredible!"
 msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
 msgstr "OUT OF HEARTS"
 
+msgid "У тебя одно сердце: ошибка сожжёт его"
+msgstr "You have one heart: a mistake will burn it"
+
+msgid "У тебя %d сердца: ошибка сжигает одно"
+msgstr "You have %d hearts: a mistake burns one"
+
+msgid "У тебя %d сердец: ошибка сжигает одно"
+msgstr "You have %d hearts: a mistake burns one"
+
 msgid "+1 СЕРДЦЕ"
 msgstr "+1 HEART"
 

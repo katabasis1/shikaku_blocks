@@ -13,8 +13,11 @@ extends Node
 ##     Навык пройден вместе с уровнем.
 ##   Уровни 1..Tutorial.GUARD_LEVELS: подпись над полем (CoachLabel) — навык уровня
 ##     или правило, а пока блок над красным местом — причина одной строкой.
-##   Урок отмены (UNDO: первый тупик — поле тускнеет, рука жмёт на «Отмена») убран вместе с отменой (20.1a);
-##     про сердца на уровне 4 — 20.1d.
+##   Урок отмены (UNDO: первый тупик — поле тускнеет, рука жмёт на «Отмена») убран вместе с отменой (20.1a).
+##   Первая попытка с сердцами (HEARTS, 20.1d; по флагам — уровень 4 или задача дня, раньше уровня 4):
+##     через HEARTS_DELAY сообщение «У тебя 3 сердца: ошибка сжигает одно» на HEARTS_HOLD, сердца по очереди
+##     подпрыгивают (HeartsBar.greet). Навык пройден — первое сгоревшее сердце (on_mistake) или победа на уровне
+##     с сердцами; до того урок — на каждой попытке с сердцами. Уровни 1–3 и «Лаборатория» — без сердец и урока.
 ##   Долгий простой на уровнях Tutorial.HINT_FROM..HINT_TO (HINT): пульс кнопки подсказки,
 ##     пока игрок ни разу ей не воспользовался.
 ## Любое нажатие прячет руку и начинает отсчёт простоя заново.
@@ -32,6 +35,9 @@ const TURN_DELAY := 0.35
 const REASON_HOLD := 2.5
 ## Раскладка экрана поменялась посреди жеста руки: через сколько секунд показать его заново.
 const RELAYOUT_DELAY := 0.3
+## Урок сердец (HEARTS): через сколько секунд после старта попытки сообщение и сколько оно держится.
+const HEARTS_DELAY := 0.6
+const HEARTS_HOLD := 4.0
 const CAPTION_COLOR := Color(1, 1, 1, 0.95)
 const REASON_COLOR := Color(1.0, 0.64, 0.64)
 
@@ -49,6 +55,10 @@ var idle: float = 0.0
 var own_moves: int = 0
 ## Кнопку подсказки на этом уровне уже предлагали.
 var hint_offered: bool = false
+## Урок сердец ждёт показа: секунд до него (< 0 — не ждёт).
+var hearts_lesson: float = -1.0
+## Урок сердец на этой попытке уже показан.
+var hearts_shown: bool = false
 
 ## Навык уровня на момент старта — по нему выбирается подпись.
 var _caption_skill: int = 0
@@ -78,8 +88,8 @@ func setup(game: Game) -> void:
 	GameState.hint_used.connect(_on_hint_used)
 
 
-## Новый уровень: навык уровня, подпись над полем. После обучения — ни подписи, ни напутствий (07.10:
-## «Дальше — сам!» на уровне 4 убран — «обучение кончилось и всё»).
+## Новый уровень: навык уровня, подпись над полем. После обучения подписи нет (07.10: «Дальше — сам!» на уровне 4
+## убран); первая попытка с сердцами — урок сердец (20.1d; Game уже сбросил сердца попытки).
 func restart(level: int) -> void:
 	stop()
 	skill = Tutorial.skill_for_level(level, GameState.tutorial)
@@ -92,6 +102,8 @@ func restart(level: int) -> void:
 	_pair_done = false
 	_focus_slot = -1
 	_rule = ""
+	hearts_shown = false
+	hearts_lesson = HEARTS_DELAY if _wants_hearts_lesson() else -1.0
 	_label.visible = level <= Tutorial.GUARD_LEVELS
 	show_caption()
 
@@ -126,6 +138,10 @@ func tick(delta: float) -> void:
 		_reason_left -= delta
 		if _reason_left <= 0.0:
 			show_caption()
+	if hearts_lesson >= 0.0:
+		hearts_lesson -= delta
+		if hearts_lesson <= 0.0:
+			_show_hearts_lesson()
 	if g.drag.is_busy() or not g.can_play():
 		return
 	idle += delta
@@ -151,11 +167,50 @@ func on_own_move(r := Rect2i()) -> void:
 		countdown = LONG_IDLE
 
 
-## Уровень пройден: навык уровня засчитан, рука убрана.
+## Уровень пройден: навык уровня засчитан, рука убрана; уровень с сердцами — урок сердец пройден.
 func on_level_complete() -> void:
 	stop()
 	if skill != 0:
 		_learn_level_skill()
+	_learn_hearts()
+
+
+## Ошибка (Game._on_mistake): игрок что-то делает; на попытке с сердцами сердце сгорело — урок сердец пройден.
+func on_mistake() -> void:
+	postpone()
+	_learn_hearts()
+
+
+## Урок сердец нужен: на попытке есть сердца, а навыка HEARTS ещё нет.
+func _wants_hearts_lesson() -> bool:
+	return _game.hearts.is_limited() and not GameState.has_skill(Tutorial.HEARTS)
+
+
+## Урок сердец: сообщение и сердца по очереди подпрыгивают. Уже не нужен (сердце сгорело раньше) — ничего.
+func _show_hearts_lesson() -> void:
+	hearts_lesson = -1.0
+	var g := _game
+	if not _wants_hearts_lesson() or g.has_mistake() or g.hearts.is_out():
+		return
+	hearts_shown = true
+	g.toast.show_text(hearts_text(g.hearts.max_hearts), HEARTS_HOLD)
+	g.hearts_bar.greet()
+
+
+## На попытке с сердцами — навык HEARTS пройден (урок больше не ждёт).
+func _learn_hearts() -> void:
+	if _game.hearts.is_limited():
+		hearts_lesson = -1.0
+		GameState.learn(Tutorial.HEARTS)
+
+
+## Текст урока сердец: n — сердец на попытку (флаг hearts, 1–5).
+func hearts_text(n: int) -> String:
+	if n == 1:
+		return tr("У тебя одно сердце: ошибка сожжёт его")
+	if n >= 5:
+		return tr("У тебя %d сердец: ошибка сжигает одно") % n
+	return tr("У тебя %d сердца: ошибка сжигает одно") % n
 
 
 ## Верный ход для руки: {slot, rect} или {}. Сначала ход без поворота, а на уроке

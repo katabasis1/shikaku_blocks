@@ -552,7 +552,7 @@ func has_mistake() -> bool:
 ## (_return_mistake). Сердце на полосе (HeartsBar, 20.1c) гаснет само: трещина в миг трещины блока, затем «пуф».
 ## Подпись объясняет причину. Последнее сердце — поле стоит (_on_hearts_out) после возврата блока.
 func _on_mistake(b: Block, i: int, r: Rect2i) -> void:
-	coach.postpone()
+	coach.on_mistake()  # и урок сердец пройден (20.1d)
 	flush_mistake()
 	tray.clear_slot(i)
 	board.place_block(b, r)

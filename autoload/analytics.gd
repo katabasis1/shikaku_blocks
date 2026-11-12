@@ -26,7 +26,7 @@ const DAILY_KEY := "day"
 ## Имена навыков обучения (биты Tutorial) в цели tutorial_step.
 const SKILL_NAMES := {
 	Tutorial.DRAG: "drag", Tutorial.ROTATE: "rotate", Tutorial.ONE_NUMBER: "one_number", Tutorial.SOLO: "solo",
-	Tutorial.UNDO: "undo", Tutorial.HINT: "hint",
+	Tutorial.UNDO: "undo", Tutorial.HINT: "hint", Tutorial.HEARTS: "hearts",
 }
 
 ## Последние цели: {"goal": имя, "params": параметры} — старые в начале.

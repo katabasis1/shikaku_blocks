@@ -24,6 +24,15 @@ msgstr "İnanılmaz!"
 msgid "СЕРДЦА ЗАКОНЧИЛИСЬ"
 msgstr "CANLAR BİTTİ"
 
+msgid "У тебя одно сердце: ошибка сожжёт его"
+msgstr "Bir canın var: bir hata onu yakar"
+
+msgid "У тебя %d сердца: ошибка сжигает одно"
+msgstr "%d canın var: her hata birini yakar"
+
+msgid "У тебя %d сердец: ошибка сжигает одно"
+msgstr "%d canın var: her hata birini yakar"
+
 msgid "+1 СЕРДЦЕ"
 msgstr "+1 CAN"
 

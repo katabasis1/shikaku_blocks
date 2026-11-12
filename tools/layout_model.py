@@ -69,9 +69,12 @@ TOAST_PAD_X, TOAST_PAD_Y, TOAST_SIZE, TOAST_SPACING, TOAST_SHADOW = 32.0, 18.0, 
 TOAST_NO_LINE_START = ("—", "–")
 TOAST_SENTENCE_END = ".!?…"
 TOAST_MAX_LINES = 3
-# Все тексты сообщений (toast.show_text в коде; у обучения — причина тупика TutorialCoach.reason_text).
+# Все тексты сообщений (toast.show_text в коде; у обучения — причина тупика TutorialCoach.reason_text и урок сердец
+# TutorialCoach.hearts_text, 20.1d).
 TOAST_TEXTS = [
     "Подсказка откроется после просмотра рекламы", "Так остальные блоки не поместятся",
+    "У тебя одно сердце: ошибка сожжёт его", "У тебя %d сердца: ошибка сжигает одно",
+    "У тебя %d сердец: ошибка сжигает одно",
 ]
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # Сердца (20.1c): GameLayout.HEARTS_ROW_PORTRAIT / PILL_SIDE_GAP; ActionsBar.separation (game.tscn); HEART, GAP —
