@@ -138,7 +138,7 @@ const flush = () => new Promise((r) => setImmediate(r));
   const M = h.w.ShikakuMetrika;
   out.head_on_tag = h.appended.map((e) => [e.tag, e.src, !!e.async]);
   out.head_on_goals = [M.goal('level_win', '{"level_win":{"L0012":{"stars":3}}}'), M.goal('hint', { hint: { L0012: 'ad' } }),
-                       M.goal('undo', '{oops'), M.goal('game_ready', '')];
+                       M.goal('heart_lost', '{oops'), M.goal('game_ready', '')];
   M.loaded(true); M.loaded(false, 'start');
   out.head_on_calls = h.calls();
   out.head_on_id = M.id;
@@ -171,7 +171,7 @@ def check_metrika(out: dict) -> list:
         bad.append("Метрика: init %s" % init)
     expect = [[TEST_ID, "reachGoal", "level_win", {"level_win": {"L0012": {"stars": 3}}}],
               [TEST_ID, "reachGoal", "hint", {"hint": {"L0012": "ad"}}],
-              [TEST_ID, "reachGoal", "undo"], [TEST_ID, "reachGoal", "game_ready"],
+              [TEST_ID, "reachGoal", "heart_lost"], [TEST_ID, "reachGoal", "game_ready"],
               [TEST_ID, "reachGoal", "load_done", {"load_done": {"sec": "10-20"}}]]
     # undefined в аргументах JSON отдаёт как null — срезаем хвостовые null
     got = [[a for a in c if a is not None] for c in calls[1:]]

@@ -102,11 +102,14 @@ extends Node
 ##     правило над полем и идея на карточке главы, прохождение подсказками до победы; на 156 и 351 правила нет;
 ##     ежедневная с механикой — правило, пока вводные уровни не пройдены.
 ## 19. аналитика (этап 16.1): интервалы секунд и ключи уровней Analytics; вне веба цели только в журнале (не больше
-##     JOURNAL_SIZE); журнал целей в игре — уровень 12: начало, первый свой ход один раз, тупик и отмена по разу за
-##     попытку (число — в итоге), подсказка бесплатная и за рекламу, «Заново» посреди уровня (level_restart с
-##     числами и «блоков на поле»), победа (звёзды, отмены, подсказки — как в игре), переигровка, «Заново» после
-##     победы — не попытка, уход со сцены — level_exit; задача дня (daily_*, серия); «Лаборатория» не считается;
-##     навык обучения — tutorial_step один раз; итоги рекламы (YSDK.ad_result и события JS) и отзыва (review_result).
+##     JOURNAL_SIZE); журнал целей в игре — уровень 12: начало, первый свой ход один раз, тупик раз за попытку
+##     (число — в итоге), каждое сгоревшее сердце — heart_lost (сколько осталось; 20.1e), цели undo нет,
+##     подсказка бесплатная и за рекламу, «Заново» посреди уровня (level_restart с числами, «блоков на поле» и
+##     сердцами «осталось/всего»), победа (звёзды, подсказки, сердца — как в игре), переигровка, «Заново» после
+##     победы — не попытка, уход со сцены — level_exit; уровень 1 (без сердец) — без hearts; задача дня (daily_*,
+##     серия, сердца); «Лаборатория» не считается; вне попытки цели сердец не шлются; навык обучения —
+##     tutorial_step один раз; итоги рекламы (YSDK.ad_result и события JS) и отзыва (review_result). hearts_out и
+##     revive (rewarded / free / closed / not_shown) — в «сердца кончились» (_hearts_out_run, раздел игры).
 ## Код выхода: 0 — всё хорошо, 1 — есть ошибки (подробности в выводе).
 ## Сохранение и настройки игрока (user://save.cfg, user://settings.cfg) на время
 ## теста откладываются и потом возвращаются.
@@ -5352,7 +5355,8 @@ func _test_dead_end(game: Game, lvl: int) -> bool:
 ## пояснением; не показалась, а бесплатное уже брали — пояснение; досмотрел — возрождение; revive_max исчерпан —
 ## только «Заново», звёзд 1, межстраничной на «Далее» не будет. «Заново» из окна — снова полные сердца; реклама не
 ## показалась — бесплатно; сердца кончились под паузой — окно после неё. Правила окна без игры — _test_hearts
-## (строки W и D) и tools/hearts_model.py.
+## (строки W и D) и tools/hearts_model.py. Метрика (20.1e): heart_lost на каждое сердце, hearts_out каждый раз,
+## revive на каждое «Продолжить» (free / closed / not_shown / rewarded), сердца в итогах «Заново» и выхода.
 func _test_hearts_out(game: Game, levels: Array[int]) -> void:
 	for lvl in levels:
 		game.start_level(lvl)
@@ -5365,6 +5369,7 @@ func _test_hearts_out(game: Game, levels: Array[int]) -> void:
 			YSDK._revive_max = 2
 			YSDK._revive_free_on_fail = true
 			YSDK.is_available = false
+			Analytics.journal.clear()  # цели сердец этой попытки — с чистого журнала (_goal_values)
 			await _hearts_out_run(game, lvl)
 			if YSDK._ad_kind != YSDK.AD_NONE:
 				YSDK._finish_ad("timeout")
@@ -5414,11 +5419,24 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	var hp := game.hearts_panel
 	var n := h.max_hearts
 	var moves_before := game.moves.size()
+	var key := Analytics.level_key(lvl)
+	var placed := "%d/%d" % [moves_before, (game.level_data.pieces as Array).size()]
 	if not _hearts_burn(game, lvl, n):
 		return
 	_check(h.is_out() and h.mistakes == n and not game.can_play() and game.moves.size() == moves_before,
 			"L%d: после %d ошибок сердца не кончились (осталось %d, ошибок %d, ходить можно: %s, ходов %d → %d)" % [
 			lvl, n, h.left, h.mistakes, game.can_play(), moves_before, game.moves.size()])
+	# Метрика (20.1e): каждое сердце — heart_lost (сколько осталось), последнее — ещё hearts_out (блоков на поле),
+	# ошибка — dead_end раз за попытку; «Продолжить» ещё не нажимали — revive нет.
+	var lost_want := []
+	for k in n:
+		lost_want.append(n - 1 - k)
+	_check(Analytics.run_key == key and _goal_values("heart_lost", key) == lost_want
+			and _goal_values("hearts_out", key) == [placed] and _goal_values("dead_end", key) == [1]
+			and Analytics.count("revive") == 0,
+			"L%d: Метрика, сердца кончились: heart_lost %s (ждали %s), hearts_out %s (ждали [%s]), dead_end %s, revive %d" \
+			% [lvl, str(_goal_values("heart_lost", key)), str(lost_want), str(_goal_values("hearts_out", key)), placed,
+			str(_goal_values("dead_end", key)), Analytics.count("revive")])
 	_check(game.hint_button.disabled and not game.hints.can_request() and bar.left == 0 and bar.max_hearts == n,
 			"L%d: сердца кончились, а «Подсказка» работает или полоса не пустая (%d из %d)" % [lvl, bar.left,
 			bar.max_hearts])
@@ -5447,6 +5465,8 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 			h.revives, game.can_play(), bar.left, _hearts_panel_state(hp)])
 	_check(not game.revive(false) and h.left == 1 and h.revives == 1,
 			"L%d: возрождение дали, хотя сердце есть (сердец %d, возрождений %d)" % [lvl, h.left, h.revives])
+	_check(_goal_values("revive", key) == ["free"], "L%d: Метрика, бесплатное продолжение: revive %s (ждали [free])" % [
+			lvl, str(_goal_values("revive", key))])
 
 	# Снова без сердец: рекламы нет и бесплатное уже брали — только «Заново» (главная таблетка).
 	if not _hearts_burn(game, lvl, 1):
@@ -5454,6 +5474,10 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	_check(_hearts_panel_is(game, HeartsPanel.Offer.NO_AD) and not game.revive(true) and h.revives == 1,
 			"L%d: второй раз без рекламы — ждали «только Заново»: %s, возрождений %d" % [lvl, _hearts_panel_state(hp),
 			h.revives])
+	_check(_goal_values("hearts_out", key).size() == 2 and _goal_values("heart_lost", key).size() == n + 1
+			and _goal_values("revive", key) == ["free"],
+			"L%d: Метрика, сердца кончились второй раз: hearts_out %s, heart_lost %s, revive %s" % [lvl,
+			str(_goal_values("hearts_out", key)), str(_goal_values("heart_lost", key)), str(_goal_values("revive", key))])
 
 	# Реклама есть (подделка моста): «Продолжить» со значком рекламы. Закрыл раньше награды — окно с пояснением.
 	var fake := FakeBridge.new()
@@ -5487,6 +5511,11 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	_check(not hp.visible and h.left == 1 and h.revives == 2 and game.can_play() and YSDK._ad_kind == YSDK.AD_NONE,
 			"L%d: досмотрел рекламу — возрождения нет: сердец %d, возрождений %d, %s" % [lvl, h.left, h.revives,
 			_hearts_panel_state(hp)])
+	# Метрика: каждое «Продолжить» — revive с итогом; «Продолжить», пока реклама идёт, нового не шлёт.
+	var revive_want := ["free", "closed", "not_shown", "rewarded"]
+	_check(_goal_values("revive", key) == revive_want,
+			"L%d: Метрика, «Продолжить» за рекламу: revive %s (ждали %s)" % [lvl, str(_goal_values("revive", key)),
+			str(revive_want)])
 
 	# revive_max исчерпан: только «Заново»; звёзд за уровень — 1, межстраничной на «Далее» не будет.
 	if not _hearts_burn(game, lvl, 1):
@@ -5498,10 +5527,19 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	_check(h.stars(game.hints.used) == 1 and not game.wants_interstitial(),
 			"L%d: после возрождения звёзд %d (ждали 1), межстраничная на «Далее»: %s" % [lvl,
 			h.stars(game.hints.used), game.wants_interstitial()])
+	_check(_goal_values("revive", key) == revive_want and _goal_values("hearts_out", key).size() == 3,
+			"L%d: Метрика, предел возрождений: revive %s, hearts_out %s" % [lvl, str(_goal_values("revive", key)),
+			str(_goal_values("hearts_out", key))])
 
 	# «Заново» из окна — новая попытка: снова полные сердца, ни ошибок, ни возрождений, окно закрыто.
 	hp.restart_button.pressed.emit()
 	await _frames(1)
+	# Метрика: итог попытки — «Заново» с сердцами «0/n» и всеми ошибками (n + 2), новая попытка — level_start.
+	var restart_info: Dictionary = _goal_params("level_restart").get("level_restart", {}).get(key, {})
+	_check(restart_info.get("hearts", "") == "0/%d" % n and restart_info.get("dead", -1) == n + 2
+			and _goal_params("level_start") == {"level_start": {key: "replay" if lvl < GameState.level else "new"}},
+			"L%d: Метрика, «Заново» из окна: %s (ждали hearts «0/%d», dead %d), начало %s" % [lvl, str(restart_info), n,
+			n + 2, str(Analytics.last("level_start"))])
 	_check(not hp.visible and h.left == n and h.mistakes == 0 and h.revives == 0 and not h.free_used
 			and game.can_play() and not game.hint_button.disabled and bar.left == n and game.wants_interstitial(),
 			"L%d: «Заново» из окна: сердец %d из %d, ошибок %d, возрождений %d, %s" % [lvl, h.left, n, h.mistakes,
@@ -5515,6 +5553,10 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	_check(not hp.visible and h.left == 1 and h.revives == 1 and h.free_used and game.can_play(),
 			"L%d: реклама не показалась — бесплатного продолжения нет: сердец %d, возрождений %d, %s" % [lvl, h.left,
 			h.revives, _hearts_panel_state(hp)])
+	revive_want.append("free")
+	_check(_goal_values("revive", key) == revive_want and _goal_values("hearts_out", key).size() == 4,
+			"L%d: Метрика, реклама не показалась — бесплатно: revive %s (ждали %s), hearts_out %s" % [lvl,
+			str(_goal_values("revive", key)), str(revive_want), str(_goal_values("hearts_out", key))])
 
 	# Последнее сердце сгорело, а блок вернулся уже под паузой — окно после паузы.
 	var mv := _find_dead_end_move(game)
@@ -5530,8 +5572,14 @@ func _hearts_out_run(game: Game, lvl: int) -> void:
 	game.start_level(lvl)
 	await _frames(1)
 	_check(not hp.visible and h.left == n, "L%d: новый уровень — окно сердец осталось открытым" % lvl)
+	# Метрика: уход с уровня без сердец — level_exit с hearts «0/n»; hearts_out — пятый раз (под паузой).
+	var exit_info: Dictionary = _goal_params("level_exit").get("level_exit", {}).get(key, {})
+	_check(exit_info.get("hearts", "") == "0/%d" % n and _goal_values("hearts_out", key).size() == 5
+			and Analytics.count("undo") == 0,
+			"L%d: Метрика, выход без сердец: %s, hearts_out %s, undo %d" % [lvl, str(exit_info),
+			str(_goal_values("hearts_out", key)), Analytics.count("undo")])
 	print("  сердца на L%d: %d ошибки — окно; бесплатно, только «Заново», реклама: закрыл / не показалась / досмотрел, " \
-			% [lvl, n] + "предел, «Заново», окно после паузы")
+			% [lvl, n] + "предел, «Заново», окно после паузы; Метрика: heart_lost, hearts_out, revive, сердца в итогах")
 
 
 func _find_dead_end_move(game: Game) -> Array:
@@ -5741,6 +5789,12 @@ func _test_analytics() -> void:
 
 	# Навык обучения: цель один раз на навык, вне уровня — "menu" (попытку, если её оставил прошлый раздел, закрываем).
 	Analytics.run_end(&"exit", -1, -1)
+	Analytics.journal.clear()
+	# Вне попытки цели сердец (20.1e) не шлются.
+	Analytics.run_heart_lost(2)
+	Analytics.run_hearts_out(3, 7)
+	Analytics.run_revive("free")
+	_check(Analytics.journal.is_empty(), "цели сердец вне попытки: журнал %s" % str(Analytics.journal))
 	GameState.reset_progress()
 	GameState.learn(Tutorial.HEARTS)
 	GameState.learn(Tutorial.HEARTS)
@@ -5763,8 +5817,9 @@ func _test_analytics() -> void:
 	var key := Analytics.level_key(LOGIC_LEVEL)
 	var total := (game.level_data.pieces as Array).size()
 	var exit1: Dictionary = _goal_params("level_exit").get("level_exit", {}).get("L0001", {})
-	_check(_is_span(exit1.get("time")) and exit1.get("undo", -1) == 0 and exit1.get("hint", -1) == 0
-			and exit1.get("dead", -1) == 0 and exit1.get("placed", "") == "0/%d" % total1 and exit1.size() == 5
+	# Уровень 1 — без сердец (обучение со страховкой): в итоге нет hearts; отмены нет — нет и undo (20.1e).
+	_check(_is_span(exit1.get("time")) and exit1.get("hint", -1) == 0
+			and exit1.get("dead", -1) == 0 and exit1.get("placed", "") == "0/%d" % total1 and exit1.size() == 4
 			and Analytics.run_key == key,
 			"смена уровня не закрыла попытку уровня 1 выходом: %s, открыта «%s»" % [str(Analytics.last("level_exit")),
 			Analytics.run_key])
@@ -5780,7 +5835,10 @@ func _test_analytics() -> void:
 	_check(Analytics.count("first_move") == 1 and _is_span(_goal_params("first_move").get("first_move", {}).get(key)),
 			"первый ход: целей %d, последняя %s" % [Analytics.count("first_move"), str(Analytics.last("first_move"))])
 	# Тупик — раз за попытку, сколько всего — в итоге. Отмены у игрока нет (20.1a): тупиковый ход — ошибка (сердце),
-	# блок сам возвращается в лоток (flush_mistake — сразу); целей undo нет, в итоге undo — 0 (до 20.1e).
+	# блок сам возвращается в лоток (flush_mistake — сразу); целей undo нет. Каждое сгоревшее сердце — heart_lost,
+	# сколько осталось (20.1e); сердца ещё есть — hearts_out нет.
+	var n_hearts := game.hearts.max_hearts
+	_check(n_hearts >= 3, "уровень %d: сердец %d (ждали флаг hearts, по умолчанию 3)" % [LOGIC_LEVEL, n_hearts])
 	for _k in 2:
 		var mv := _find_dead_end_move(game)
 		if not _check(not mv.is_empty(), "уровень %d: нет тупикового хода" % LOGIC_LEVEL):
@@ -5792,6 +5850,11 @@ func _test_analytics() -> void:
 			and Analytics.count("undo") == 0,
 			"тупик: целей dead_end %d (ждали 1), undo %d (ждали 0)" % [Analytics.count("dead_end"),
 			Analytics.count("undo")])
+	_check(_goal_values("heart_lost", key) == [n_hearts - 1, n_hearts - 2] and Analytics.count("hearts_out") == 0
+			and Analytics.count("revive") == 0,
+			"сгоревшие сердца: heart_lost %s (ждали [%d, %d]), hearts_out %d, revive %d" % [
+			str(_goal_values("heart_lost", key)), n_hearts - 1, n_hearts - 2, Analytics.count("hearts_out"),
+			Analytics.count("revive")])
 	# Подсказка: каждая, бесплатная и за рекламу.
 	game.hints.give()
 	_check(Analytics.count("hint") == 1 and _goal_params("hint") == {"hint": {key: "free"}},
@@ -5807,7 +5870,7 @@ func _test_analytics() -> void:
 	var placed: int = game.moves.size()
 	game._on_restart_pressed()
 	await _frames(1)
-	var want := {"undo": 0, "hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total]}
+	var want := {"hint": 3, "dead": 2, "placed": "%d/%d" % [placed, total], "hearts": "%d/%d" % [n_hearts - 2, n_hearts]}
 	var got_restart: Dictionary = _goal_params("level_restart").get("level_restart", {}).get(key, {}).duplicate()
 	var restart_time: Variant = got_restart.get("time")
 	got_restart.erase("time")
@@ -5816,13 +5879,13 @@ func _test_analytics() -> void:
 	_check(Analytics.count("level_start") == 3 and _goal_params("level_start") == {"level_start": {key: "new"}},
 			"после «Заново» нет новой попытки: начал %d, %s" % [Analytics.count("level_start"),
 			str(Analytics.last("level_start"))])
-	# Победа подсказками: звёзды, отмены и подсказки — как в игре; первого своего хода не было.
+	# Победа подсказками: звёзды, подсказки и сердца (все целы) — как в игре; первого своего хода не было.
 	if _solve_with_hints(game, LOGIC_LEVEL):
 		var info: Dictionary = _goal_params("level_win").get("level_win", {}).get(key, {})
 		var stars := GameState.get_stars(LOGIC_LEVEL)
 		_check(info.get("stars", -1) == stars and info.get("hint", -1) == game.hints.used
-				and info.get("undo", -1) == 0 and info.get("dead", -1) == 0 and _is_span(info.get("time"))
-				and info.size() == 5 and Analytics.run_key.is_empty(),
+				and info.get("hearts", "") == "%d/%d" % [n_hearts, n_hearts] and info.get("dead", -1) == 0
+				and _is_span(info.get("time")) and info.size() == 5 and Analytics.run_key.is_empty(),
 				"победа: %s (звёзд %d, подсказок %d), попытка «%s»" % [str(info), stars, game.hints.used, Analytics.run_key])
 		_check(Analytics.count("first_move") == 1, "подсказки посчитались первым ходом")
 		# «Заново» после победы — не попытка; переигровка — replay.
@@ -5867,9 +5930,12 @@ func _test_analytics() -> void:
 			and Analytics.count("level_start") == 0, "начало задачи дня: %s" % str(Analytics.last("daily_start")))
 	if _solve_with_hints(game, game.level):
 		var dinfo: Dictionary = _goal_params("daily_win").get("daily_win", {}).get(day, {})
+		var dh := game.hearts
 		_check(dinfo.get("streak", -1) == GameState.daily_streak and GameState.daily_streak == 1
-				and dinfo.get("stars", -1) == GameState.daily_last_stars and Analytics.count("level_win") == 0,
-				"победа задачи дня: %s (серия %d)" % [str(dinfo), GameState.daily_streak])
+				and dinfo.get("stars", -1) == GameState.daily_last_stars and Analytics.count("level_win") == 0
+				and dh.is_limited() and dinfo.get("hearts", "") == "%d/%d" % [dh.left, dh.max_hearts],
+				"победа задачи дня: %s (серия %d, сердец %d из %d)" % [str(dinfo), GameState.daily_streak, dh.left,
+				dh.max_hearts])
 		game.start_level(game.level, true)
 		await _frames(1)
 		_check(_goal_params("daily_start") == {"daily_start": {day: "replay"}},
@@ -5923,8 +5989,8 @@ func _test_analytics() -> void:
 	_check(_goal_params("review") == {"review": "sent"}, "цель отзыва: %s" % str(Analytics.last("review")))
 	YSDK._review_requested_this_session = asked
 	Analytics.journal.clear()
-	print("  интервалы, журнал; уровень: начало, первый ход, тупик и отмена по разу, подсказки, «Заново», победа, "
-			+ "переигровка, выход; задача дня; «Лаборатория» не считается; навык; реклама и отзыв")
+	print("  интервалы, журнал; уровень: начало, первый ход, тупик раз, heart_lost, подсказки, «Заново», победа, "
+			+ "переигровка, выход (сердца в итогах); задача дня; «Лаборатория» не считается; навык; реклама и отзыв")
 
 
 ## v — интервал секунд Analytics.span ("0-3", …, "300+").
@@ -5940,6 +6006,17 @@ func _is_span(v: Variant) -> bool:
 ## Параметры последней цели goal_id в журнале Analytics ({} — не было).
 func _goal_params(goal_id: String) -> Dictionary:
 	return Analytics.last(goal_id).get("params", {})
+
+
+## Значения цели goal_id по ключу попытки key — все по порядку из журнала Analytics ([] — не было).
+func _goal_values(goal_id: String, key: String) -> Array:
+	var out := []
+	for e: Dictionary in Analytics.journal:
+		if e["goal"] == goal_id:
+			var by_key: Dictionary = e["params"].get(goal_id, {})
+			if by_key.has(key):
+				out.append(by_key[key])
+	return out
 
 
 ## Ход из решения от текущей расстановки: {slot, rect} ({} — нет).

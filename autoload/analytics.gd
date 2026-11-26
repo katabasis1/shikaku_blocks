@@ -12,8 +12,11 @@ extends Node
 ##
 ## Попытка — от начала уровня до итога: level_win (победа), level_exit (ушёл в меню, на карту, закрыл сцену) или
 ## level_restart («Заново» посреди уровня; «Заново» из окна победы — уже не попытка). Внутри попытки: first_move
-## (первый свой ход, через сколько секунд), dead_end и undo — по разу за попытку (сколько всего — в итоге),
-## hint — каждая (бесплатная или за рекламу). Ежедневная задача — цели daily_start / daily_win / daily_exit /
+## (первый свой ход, через сколько секунд), dead_end — раз за попытку (сколько всего ошибок — в итоге), hint —
+## каждая (бесплатная или за рекламу). Сердца (20.1e): heart_lost — каждое сгоревшее (сколько осталось),
+## hearts_out — сердца кончились (сколько блоков на поле), revive — каждое нажатие «Продолжить» в окне «Сердца
+## закончились» (чем кончилось); в итогах попытки на уровне с сердцами — hearts «осталось/всего». Отмены у игрока
+## нет (20.1a) — цели undo больше нет. Ежедневная задача — цели daily_start / daily_win / daily_exit /
 ## daily_restart, ключ "day" вместо номера уровня. «Лаборатория» (отладка) не считается.
 
 ## Границы интервалов секунд (span): "0-3", "3-5", …, "120-300", "300+". Те же — в web/shell.html (SPAN_EDGES),
@@ -23,6 +26,10 @@ const SPAN_EDGES: Array[int] = [3, 5, 10, 20, 30, 60, 120, 300]
 const JOURNAL_SIZE := 200
 ## Ключ ежедневной задачи вместо номера уровня.
 const DAILY_KEY := "day"
+## Итоги нажатия «Продолжить» в окне «Сердца закончились» (цель revive, 20.1e): rewarded — досмотрел рекламу,
+## сердце дано; free — сердце дано бесплатно (рекламы нет или она не показалась, флаг revive_free_on_fail);
+## closed — закрыл рекламу раньше награды; not_shown — реклама не показалась, а бесплатное уже брали.
+const REVIVE_RESULTS: Array[String] = ["rewarded", "free", "closed", "not_shown"]
 ## Имена навыков обучения (биты Tutorial) в цели tutorial_step.
 const SKILL_NAMES := {
 	Tutorial.DRAG: "drag", Tutorial.ROTATE: "rotate", Tutorial.ONE_NUMBER: "one_number", Tutorial.SOLO: "solo",
@@ -42,7 +49,6 @@ var _js = null  # JavaScriptObject window.ShikakuMetrika (только в веб
 var _ready_sent: bool = false
 var _run_start_ms: int = 0
 var _first_move: bool = false
-var _undos: int = 0
 var _dead_ends: int = 0
 var _hints: int = 0
 
@@ -119,7 +125,6 @@ func run_start(n: int, daily: bool, replay: bool) -> void:
 	run_key = DAILY_KEY if daily else level_key(n)
 	_run_start_ms = Time.get_ticks_msec()
 	_first_move = false
-	_undos = 0
 	_dead_ends = 0
 	_hints = 0
 	_run_goal("start", "replay" if replay else "new")
@@ -133,7 +138,7 @@ func run_move() -> void:
 	goal("first_move", {"first_move": {run_key: span(_run_seconds())}})
 
 
-## Тупик: dead_end — первый за попытку, число — в итоге.
+## Ошибка — тупиковый ход (20.1a): dead_end — первая за попытку, число — в итоге (dead).
 func run_dead_end() -> void:
 	if run_key.is_empty():
 		return
@@ -142,13 +147,25 @@ func run_dead_end() -> void:
 		goal("dead_end", {"dead_end": {run_key: 1}})
 
 
-## Отмена хода: undo — первая за попытку, число — в итоге.
-func run_undo() -> void:
+## Сгорело сердце (20.1e; только на уровне с сердцами): heart_lost — каждое, left — сколько осталось.
+func run_heart_lost(left: int) -> void:
 	if run_key.is_empty():
 		return
-	_undos += 1
-	if _undos == 1:
-		goal("undo", {"undo": {run_key: 1}})
+	goal("heart_lost", {"heart_lost": {run_key: left}})
+
+
+## Сердца кончились (20.1e): hearts_out — каждый раз (и после возрождения), placed из total блоков на поле.
+func run_hearts_out(placed: int, total: int) -> void:
+	if run_key.is_empty():
+		return
+	goal("hearts_out", {"hearts_out": {run_key: "%d/%d" % [placed, total]}})
+
+
+## «Продолжить» в окне «Сердца закончились» (20.1e): revive — чем кончилось (REVIVE_RESULTS).
+func run_revive(result: String) -> void:
+	if run_key.is_empty():
+		return
+	goal("revive", {"revive": {run_key: result}})
 
 
 ## Подсказка (поставила блок или откатила тупик): каждая; paid — после рекламы за награду.
@@ -159,24 +176,26 @@ func run_hint(paid: bool) -> void:
 	goal("hint", {"hint": {run_key: "ad" if paid else "free"}})
 
 
-## Победа: level_win (daily_win) — звёзды, время, отмены, подсказки, тупики; extra — добавить (серия дня).
+## Победа: level_win (daily_win) — звёзды, время, подсказки, ошибки; extra — добавить (сердца — hearts, серия дня —
+## streak; Game._analytics_extra).
 func run_win(stars: int, extra: Dictionary = {}) -> void:
 	if run_key.is_empty():
 		return
-	var info := {"stars": stars, "time": span(_run_seconds()), "undo": _undos, "hint": _hints, "dead": _dead_ends}
+	var info := {"stars": stars, "time": span(_run_seconds()), "hint": _hints, "dead": _dead_ends}
 	info.merge(extra)
 	_run_goal("win", info)
 	run_key = ""
 
 
 ## Попытка закончилась без победы: reason — &"exit" (ушёл) или &"restart" («Заново»); placed из total блоков
-## на поле (-1 — неизвестно). Попытки нет — ничего.
-func run_end(reason: StringName, placed: int, total: int) -> void:
+## на поле (-1 — неизвестно); extra — добавить (сердца — hearts). Попытки нет — ничего.
+func run_end(reason: StringName, placed: int, total: int, extra: Dictionary = {}) -> void:
 	if run_key.is_empty():
 		return
-	var info := {"time": span(_run_seconds()), "undo": _undos, "hint": _hints, "dead": _dead_ends}
+	var info := {"time": span(_run_seconds()), "hint": _hints, "dead": _dead_ends}
 	if placed >= 0 and total > 0:
 		info["placed"] = "%d/%d" % [placed, total]
+	info.merge(extra)
 	_run_goal(String(reason), info)
 	run_key = ""
 

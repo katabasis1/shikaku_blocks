@@ -269,7 +269,20 @@ func _begin_level(n: int, is_daily: bool, data: Dictionary, mechanic: String, in
 
 ## Попытка уровня закончилась без победы (16.1): reason — &"exit" или &"restart"; на поле — сколько блоков из всех.
 func _analytics_end(reason: StringName) -> void:
-	Analytics.run_end(reason, moves.size(), (level_data.get("pieces", []) as Array).size())
+	Analytics.run_end(reason, moves.size(), _pieces_total(), _analytics_extra())
+
+
+## Параметры итога попытки для Метрики (20.1e): на уровне с сердцами — hearts «осталось/всего» («2/3»); без сердец
+## (уровни 1–3, флаг hearts = 0) — ничего (ошибки — в dead).
+func _analytics_extra() -> Dictionary:
+	if not hearts.is_limited():
+		return {}
+	return {"hearts": "%d/%d" % [hearts.left, hearts.max_hearts]}
+
+
+## Сколько блоков в уровне.
+func _pieces_total() -> int:
+	return (level_data.get("pieces", []) as Array).size()
 
 
 ## Расставляет узлы под экран screen: портрет или альбом (GameLayout, гистерезис по ширина/высота).
@@ -558,7 +571,13 @@ func _on_mistake(b: Block, i: int, r: Rect2i) -> void:
 	board.place_block(b, r)
 	_mistake = {"block": b, "slot": i, "rect": r}
 	hearts.lose()
+	# Метрика (20.1e): ошибка — dead_end; на уровне с сердцами — heart_lost, последнее — hearts_out (сразу, в кадре
+	# хода: окно откроется позже, когда блок вернётся, а игрок может уйти раньше).
 	Analytics.run_dead_end()
+	if hearts.is_limited():
+		Analytics.run_heart_lost(hearts.left)
+		if hearts.is_out():
+			Analytics.run_hearts_out(moves.size(), _pieces_total())
 	_reset_note_streak()
 	line_streak = 0
 	b.warn(MISTAKE_WARN)
@@ -659,6 +678,7 @@ func _on_revive_ad(rewarded: bool, at_session: int) -> void:
 		HeartsPanel.After.FREE:
 			_revive_from_panel(true)
 		_:
+			Analytics.run_revive("closed" if after == HeartsPanel.After.NOTE_CLOSED else "not_shown")  # 20.1e
 			hearts_panel.set_offer(hearts_offer())
 			if hearts_panel.offer == HeartsPanel.Offer.AD:
 				hearts_panel.set_note(HeartsPanel.NOTE_CLOSED if after == HeartsPanel.After.NOTE_CLOSED
@@ -676,10 +696,11 @@ func _revive_from_panel(free: bool) -> void:
 
 ## Возрождение: +1 сердце, поле как есть; звёзд за уровень — 1. free — бесплатное продолжение (реклама не
 ## показалась). false — сейчас нельзя (сердца не кончились или возрождения исчерпаны). Окно — _revive_from_panel.
-## Вернувшееся сердце на полосе вырастает (HeartsBar.pop, 20.1c).
+## Вернувшееся сердце на полосе вырастает (HeartsBar.pop, 20.1c). Метрика — revive (rewarded / free, 20.1e).
 func revive(free := false) -> bool:
 	if finished or not hearts.try_revive(YSDK.revive_max(), free, YSDK.revive_free_on_fail()):
 		return false
+	Analytics.run_revive("free" if free else "rewarded")
 	toast.dismiss()
 	update_hud()
 	hearts_bar.pop()
@@ -749,12 +770,14 @@ func _on_level_complete(later := 0.0) -> void:
 	var gain := -1
 	if daily_mode:
 		GameState.complete_daily(daily_date_key, stars, earned)
-		Analytics.run_win(stars, {"streak": GameState.daily_streak})
+		var extra := _analytics_extra()
+		extra["streak"] = GameState.daily_streak
+		Analytics.run_win(stars, extra)
 	elif not lab_mechanic.is_empty():
 		LabLevels.mark_done(lab_mechanic, lab_index, stars)  # «Лаборатория»: только отметка на её экране
 	else:
 		gain = GameState.complete_level(level, stars, earned)
-		Analytics.run_win(stars)
+		Analytics.run_win(stars, _analytics_extra())
 	level_score = 0
 	update_hud()
 	# Таймлайн празднования на твине, привязанном к узлу: при уходе со сцены он гасится сам.
