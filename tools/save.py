@@ -24,7 +24,7 @@
 Беседа вне Pod (24.10): /files/pod не смонтирован — save.py пишет только архив в файлы беседы
 (/files/conversation/shikaku_blocks_latest.zip) и печатает, куда его скопировать в Pod инструментом files `copy`
 (`conversation-<id>/shikaku_blocks_latest.zip` -> `pod-<podId>/backups/shikaku_blocks_latest.zip`). Pod проекта —
-«шикаку» (с 27.11, ночь — vlt_6VgbxazGXR2L7J, POD_ID ниже; прежние — vlt_DzP3sLWX0IWCX5 27.11, vlt_ARsg1DssPHwfgk 12.11 вечер, vlt_iNDjfxkx193Pv8 12.11, vlt_UkLgWQC9NxQuyi 11.11, vlt_iNDjfx6LL931Sa 24.10). Лучше работать в беседе
+«шикаку» (с 27.11, утро — vlt_q03Y16SxS92kZu, POD_ID ниже; прежние — vlt_6VgbxazGXR2L7J 27.11 ночь, vlt_DzP3sLWX0IWCX5 27.11, vlt_ARsg1DssPHwfgk 12.11 вечер, vlt_iNDjfxkx193Pv8 12.11, vlt_UkLgWQC9NxQuyi 11.11, vlt_iNDjfx6LL931Sa 24.10). Лучше работать в беседе
 внутри Pod: тогда всё как раньше.
 
 Что не сохраняется: кэши (__pycache__, *.pyc, tools/.levels_cache.jsonl), .godot/, build/.
@@ -49,7 +49,7 @@ POD = os.path.join(POD_ROOT, "shikaku_blocks")
 BACKUPS = os.path.join(POD_ROOT, "backups")
 CONV = "/files/conversation"   # файлы текущей беседы: туда же копия latest.zip
 LATEST = "shikaku_blocks_latest.zip"
-POD_ID = "vlt_6VgbxazGXR2L7J"   # Pod «шикаку» (27.11, ночь); для подсказки, когда Pod не смонтирован
+POD_ID = "vlt_q03Y16SxS92kZu"   # Pod «шикаку» (27.11, утро); для подсказки, когда Pod не смонтирован
 ZIP_ROOT = "shikaku_blocks"
 
 SKIP_DIRS = {"__pycache__", ".godot", "build", ".import", ".git"}
@@ -227,6 +227,11 @@ def main() -> None:
         print(f"новых {len(new)}, изменённых {len(changed)}, только в Pod {len(extra)} (--dry: ничего не записано)")
         return
 
+    # .md в Pod — документы редактора Dust: существующий документ из песочницы не перезаписываем (правило платформы,
+    # 27.11) — его правят инструментом документов (documents edit) или удаляют (files delete) и сохраняют заново;
+    # свежая версия всё равно идёт в архив.
+    md_pending = [r for r in changed if r.endswith(".md")]
+    changed = [r for r in changed if not r.endswith(".md")]
     for r in new + changed:
         q = os.path.join(POD, r)
         os.makedirs(os.path.dirname(q), exist_ok=True)
@@ -240,6 +245,11 @@ def main() -> None:
     elif extra:
         print(f"{len(extra)} файлов только в Pod (?) — оставлены; удалить: --delete. "
               "Если файл записан прямо в Pod, сначала заберите его в песочницу")
+    if md_pending:
+        print(f"{len(md_pending)} документов .md в Pod не перезаписаны (в архиве — свежие): поправьте инструментом "
+              "документов или удалите (files delete, путь pod-<podId>/shikaku_blocks/<файл>) и сохраните заново:")
+        for r in md_pending:
+            print("  md", r)
     print(f"Pod: записано {len(new) + len(changed)} (новых {len(new)}, изменённых {len(changed)})"
           + (f", удалено {len(extra)}" if a.delete else ""))
 

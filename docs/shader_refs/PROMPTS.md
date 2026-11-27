@@ -19,6 +19,8 @@ nest, shelf, background).
 | `shelf_tray_cmp.jpg` | сравнение: референс / шейдер до / после переделки `shelf.gdshader` (27.11, ночь) | — | — |
 | `background_p4.jpg` | **отклонено пользователем** (27.11): фон — 5 витков-складок атласа, каждая светлеет к гребню, по гребню — чёткая тонкая светлая линия, за ней тень; ложбины тёмно-фиолетовые; виньетка | кадр фона старым шейдером, 720×1280 (`background_p4_input.jpg`) | П4 |
 | `background_p4_cmp.jpg` | **отклонено**: референс / шейдер до / после переделки `background.gdshader` (27.11, ночь; откачена) | — | — |
+| `card_windows.jpg` | карточки окон: победа (оранжевая шапка) и пауза (фиолетовая) — толстая карточка-«леденец»: линия блика по контуру шапки, глянец, тень шапки на лицо, ободок по бокам лица, губа темнее у лица со светлой кромкой по низу, мягкая тень | кадры окна победы и паузы старым шейдером рядом, 1480×1280 (`card_windows_input.jpg`) | П5 |
+| `card_windows_cmp.jpg` | сравнение: референс / до (`main`) / после переделки `card.gdshader` (27.11, утро) | — | — |
 
 **П1** (9:16, генератор изображений Dust, 27.11): «Redraw this mobile puzzle game screen (Shikaku Blocks) keeping
 EXACTLY the same layout, composition, colors, block positions, digits and UI elements, but render the materials more
@@ -62,6 +64,22 @@ UI.» Генератор нарисовал не 3, а около 5 витков
 чем можно сделать в игре: средний цвет кадра держится у #7B53E0 (шторка перехода и экран загрузки, иначе вспышка
 при смене экранов). **Отклонено пользователем 27.11 (04:30):** прежний фон нравится больше, шейдер по П4 откачен.
 
+**П5** (5:4, генератор изображений Dust, 27.11, утро; вход — кадры окна победы и паузы старым шейдером рядом,
+1480×1280, `card_windows_input.jpg`; дословно): «Redraw these two popup window cards of a mobile puzzle game (Shikaku
+Blocks) - left: the level-complete card with an orange header, right: the pause card with a violet header - keeping
+EXACTLY the same layout, proportions, card sizes and positions, corner radius, header height, all text, digits, stars,
+icons, buttons and the background. Only render the card material more beautifully, like a premium polished casual
+mobile game: each card is a thick soft candy slab. The white face has a very subtle lavender gradient toward the
+bottom, a soft light inner rim along its edge and gentle soft inner shading near the sides and bottom, so it does not
+look flat. The header is a glossy candy band in the same colors: a crisp thin white highlight line running just inside
+its top edge that follows the rounded top corners and fades out down the sides, a soft gloss on its upper half, and a
+slightly darker rounded underside where it meets the white face, casting a soft short shadow onto the face instead of
+a hard flat stripe. Under each card a visible rounded lavender lip (thickness) with a thin soft light rim along its
+bottom edge that fades smoothly on the rounded corners, and a soft violet drop shadow under the card. All highlights
+follow the rounded shapes and fade smoothly, no stuck-on ovals or abruptly cut lines. Clean, crisp, vector-like, soft
+studio lighting from the top, no extra objects, no extra text.» Раскладку, тексты и кнопки генератор сохранил,
+места чуть сдвинул (карточка паузы выше ростом) — из референса взят только материал карточки.
+
 ## Шейдеры: что сделано
 
 Порядок — по заметности на экране. «Референс» — по какой картинке; «Сделано» — дата и что поменялось.
@@ -73,7 +91,7 @@ UI.» Генератор нарисовал не 3, а около 5 витков
 | 3 | `nest.gdshader` | гнёзда чисел | `nest.jpg` | 27.11 (до ночи; строку дописали позже, по шапке шейдера): кант — глянцевая «трубка» цвета площади (сверху светлее, снизу гуще, блик по верху, искра в левом верхнем углу), внутри светлая подушка, чуть утопленная; мягкая тень на клетку |
 | 4 | `shelf.gdshader` | полка лотка | `shelf_tray.jpg` | 27.11, ночь: лицо плотнее (альфа 0,7 / 0,66) и светлее; выпуклый ободок по кромке (светлее у края, сверху ярче) с тёмной бороздкой по внутреннему краю; линия блика по верху — огибает скругления, гаснет на боках; губа-толщина 9 px под лицом и тень под полкой — в полях `outer` (Tray рисует прямоугольник шире корпуса на `Tray.SHELF_OUTER` = 24 px); гнёзда — тень под верхним краем, светлая кромка по низу, тает на скруглениях. Цвета сверены с референсом по пробам (лицо, гнездо, губа — расхождение ≤ 6 по каналу; верх ободка чуть менее синий, до 14) |
 | 5 | `background.gdshader` | фон | `background.jpg` | **Не менять — решение пользователя 27.11 (04:30): «шейдер фона оставляем таким, каким он был, мне он нравится больше».** Переделка по П4 (складки атласа: 5 витков, линия по гребню, тёмные ложбины) была сделана ночью 27.11 и откачена: шейдер, `background.gd`, `shader_ref_compare.py` и кадры `G13_7` / `G14_7` — снова прежние, STYLE 9 — прежний. `background_p4*.jpg` и П4 оставлены как запись отклонённого направления |
-| 6 | `card.gdshader` | карточки окон | нужен свой (окно победы, пауза) | — |
+| 6 | `card.gdshader` | карточки окон (`CandyCard`) | `card_windows.jpg` | 27.11, утро: толстая карточка-«леденец», все блики и тени — по контуру (вес — нормаль `box_normal`), тают на скруглениях. Шапка: вместо блика-серпа — линия блика по контуру верха (14 px от края, полуширина 6 px), огибает верхние скругления и гаснет на боках, слева ярче; глянец верхней половины сильнее (0,42), светлая кромка по краю, низ темнее к разделителю, короткая мягкая тень шапки на лицо (вместо плоской полосы). Лицо: по бокам выпуклый ободок 7 px (лавандовый у края, светлая линия по гребню, мягкая бороздка), на нижних скруглениях сужается в узкое скругление низа в губу; низ лица `#ECE6FF` (был `#F2ECFF`). Губа: у лица `#9A80F2`, к низу светлеет до `#C4B0FF`, по низу светлая кромка, тает на скруглениях. Без шапки ободок идёт и по верху. Сверено в предпросмотре на победе и паузе (яркость по вертикали и горизонтали: тень шапки и ободок — в пределах нескольких единиц из 255; линия блика — на глаз); пересобраны `G13_5_win`, `G13_5_panels`, `G18_3_leaders`, `G19_3_lab`, `G20_1b_hearts`. Униформы, которые ставит `CandyCard`, — прежние |
 | 7 | `pill.gdshader` | подписи-таблетки | нужен свой | — |
 | 8 | `win_rays.gdshader` | лучи победы | нужен свой | — |
 | 9 | `ghost.gdshader` | место несомого блока | нужен свой | — |
