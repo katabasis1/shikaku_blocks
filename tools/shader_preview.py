@@ -426,6 +426,12 @@ class Canvas:
         return Image.fromarray((np.clip(self.rgb, 0, 1) * 255 + 0.5).astype(np.uint8), "RGB")
 
 
+# win_rays.gdshader: прежний вид лучей и свечения (белые клинья по половине периода, свечение-эллипс) — логотип меню
+# (MenuLogo._make_halo задаёт то же) и промо-картинки; умолчания шейдера — экран победы (20.8, П7).
+RAYS_CLASSIC = {"ray_color": (1.0, 1.0, 1.0, 1.0), "ray_core": 0.25, "ray_soft": 0.0, "ray_alt": 1.0,
+                "glow_corner": -1.0}
+
+
 def draw_rect(cv, shader, gx, gy, w, h, s, color, params, time=0.0):
     """ColorRect с шейдером: локальный прямоугольник w×h, на экране — левый верх (gx, gy), масштаб s;
     time — TIME шейдера, с."""

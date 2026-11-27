@@ -417,13 +417,14 @@ def render_win(level=20, stars=3, points=120, total=2460, head="НОВЫЙ РЕ�
     cols, rows, _ = sp.load_level(level)
     frame, cell_px = lm.board_fit(L, cols, rows, win=True)
 
-    # WinBackdrop: лучи и свечение от центра рамки поля, размер — от большей стороны (WinBackdrop.set_center).
+    # WinBackdrop: лучи и свечение от центра рамки поля; радиус лучей — от большей стороны, свечение — рамка поля
+    # + GLOW_MARGIN (WinBackdrop.set_center).
     c = (frame[0] + frame[2] / 2, frame[1] + frame[3] / 2)
     k = max(1.0, max(frame[2], frame[3]) / gd("scenes/game/win_backdrop.gd", "FRAME_BOARD"))
-    gr = gd("scenes/game/win_backdrop.gd", "GLOW_RADIUS")
+    gm = gd("scenes/game/win_backdrop.gd", "GLOW_MARGIN")
     sp.draw_rect(cv, "win_rays", 0, 0, w, h, 1.0, (1, 1, 1, 1), {
         "rect_size": (w, h), "center": c, "radius": gd("scenes/game/win_backdrop.gd", "RAYS_RADIUS") * k,
-        "glow_radius": (gr[0] * k, gr[1] * k)})
+        "glow_radius": (frame[2] / 2 + gm, frame[3] / 2 + gm)})
     # Конфетти: залп через CONFETTI_DELAY после показа; кадр — когда всё окно уже проявилось (~1,4 с).
     draw_confetti(cv, c, 1.4 - gd("scenes/game/win_backdrop.gd", "CONFETTI_DELAY"))
 
@@ -619,7 +620,7 @@ def draw_menu_logo(cv, x0, y0, N):
     sp.draw_rect(cv, "win_rays", cx - half[0], cy - half[1], 2 * half[0], 2 * half[1], 1.0, (1, 1, 1, 1), {
         "rect_size": (2 * half[0], 2 * half[1]), "center": half, "radius": r, "rays": gd(LOGO_GD, "HALO_RAYS"),
         "ray_alpha": gd(LOGO_GD, "HALO_RAY_ALPHA"), "glow_radius": glow, "glow_blur": blur,
-        "glow_color": gd(LOGO_GD, "HALO_COLOR")})
+        "glow_color": gd(LOGO_GD, "HALO_COLOR"), **sp.RAYS_CLASSIC})
     k = tscn_vec(N["LogoBlocks"], "scale", (1.0, 1.0))[0]
     for name in ("Block3L", "Block4", "Block3R", "Block2"):    # порядок детей LogoBlocks в menu.tscn
         bx, by, _, _ = node_rect(N[name])

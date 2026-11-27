@@ -23,6 +23,8 @@ nest, shelf, background).
 | `card_windows_cmp.jpg` | сравнение: референс / до (`main`) / после переделки `card.gdshader` (27.11, утро) | — | — |
 | `pill_label.jpg` | плашка «Осталось блоков» на экране игры — мягкая лунка-таблетка: глубокая внутренняя тень сверху, узкая по торцам, светлая кромка по низу (ярче на нижних скруглениях) | низ экрана игры (поле, кнопки, плашка, полка) старым шейдером, 720×580 (`pill_label_input.jpg`) | П6 |
 | `pill_label_cmp.jpg` | сравнение: референс / до (`main`) / после переделки `pill.gdshader` (27.11, утро); снизу — плашка крупно | — | — |
+| `win_rays.jpg` | окно победы — фон за полем: около 20 мягких розово-лавандовых лучей с размытыми краями (каждый второй слабее), гаснут примерно в 200 px от поля; плотное розовое свечение по форме поля, на углах слабее | кадр окна победы старым шейдером, 720×1280 (`win_rays_input.jpg`) | П7 |
+| `win_rays_cmp.jpg` | сравнение: референс / до (`main`) / после переделки `win_rays.gdshader` (27.11, вечер); верх кадра победы, y 0…1000 | — | — |
 
 **П1** (9:16, генератор изображений Dust, 27.11): «Redraw this mobile puzzle game screen (Shikaku Blocks) keeping
 EXACTLY the same layout, composition, colors, block positions, digits and UI elements, but render the materials more
@@ -96,6 +98,21 @@ rounded shape and fade smoothly, no stuck-on ovals or abruptly cut lines. Clean,
 lighting from the top, no extra objects, no extra text.» Всё, кроме плашки, генератор сохранил; заливка посередине
 плашки — та же, что была (совпала до единиц), светлого контура сверху он не нарисовал.
 
+**П7** (9:16, генератор изображений Dust, 27.11, утро; вход — кадр окна победы старым шейдером, 720×1280,
+`win_rays_input.jpg`; дословно): «Redraw this level-complete screen of a mobile puzzle game (Shikaku Blocks) keeping
+EXACTLY the same layout, proportions, positions and sizes of everything: the title "УРОВЕНЬ 20 ПРОЙДЕН!", the board
+with all its blocks and numbers, the three stars, the card with the orange header and all its text, the green button,
+the confetti and the violet background colors. Change only the celebratory light behind the board: render it more
+beautifully, like a premium polished casual mobile game. A sunburst of about 20 soft light rays radiating from the
+center of the board: each ray is a long tapering wedge of soft white-lavender light with gently feathered edges (no
+hard cut edges), brightest close to the board and fading smoothly into the background toward the screen edges, with a
+subtle alternation of brighter and fainter rays. Around the board a soft warm pink-lavender glow halo that fades
+smoothly. Subtle and calm: the rays stay behind the board and the card, do not cover any UI and do not wash out the
+violet background. No lens flares, no extra sparkles, no extra objects, no extra text. Clean, crisp, vector-like, soft
+studio lighting.» Раскладку генератор сохранил; лучи он повернул по-своему, поэтому сверялось не по пикселям, а по
+полосам удалённости от поля. Под самой кромкой поля на референсе нет тени поля (свечение её «залило») — в игре тень
+рисует поле поверх свечения, там кадр темнее.
+
 ## Шейдеры: что сделано
 
 Порядок — по заметности на экране. «Референс» — по какой картинке; «Сделано» — дата и что поменялось.
@@ -109,7 +126,7 @@ lighting from the top, no extra objects, no extra text.» Всё, кроме п�
 | 5 | `background.gdshader` | фон | `background.jpg` | **Не менять — решение пользователя 27.11 (04:30): «шейдер фона оставляем таким, каким он был, мне он нравится больше».** Переделка по П4 (складки атласа: 5 витков, линия по гребню, тёмные ложбины) была сделана ночью 27.11 и откачена: шейдер, `background.gd`, `shader_ref_compare.py` и кадры `G13_7` / `G14_7` — снова прежние, STYLE 9 — прежний. `background_p4*.jpg` и П4 оставлены как запись отклонённого направления |
 | 6 | `card.gdshader` | карточки окон (`CandyCard`) | `card_windows.jpg` | 27.11, утро: толстая карточка-«леденец», все блики и тени — по контуру (вес — нормаль `box_normal`), тают на скруглениях. Шапка: вместо блика-серпа — линия блика по контуру верха (14 px от края, полуширина 6 px), огибает верхние скругления и гаснет на боках, слева ярче; глянец верхней половины сильнее (0,42), светлая кромка по краю, низ темнее к разделителю, короткая мягкая тень шапки на лицо (вместо плоской полосы). Лицо: по бокам выпуклый ободок 7 px (лавандовый у края, светлая линия по гребню, мягкая бороздка), на нижних скруглениях сужается в узкое скругление низа в губу; низ лица `#ECE6FF` (был `#F2ECFF`). Губа: у лица `#9A80F2`, к низу светлеет до `#C4B0FF`, по низу светлая кромка, тает на скруглениях. Без шапки ободок идёт и по верху. Сверено в предпросмотре на победе и паузе (яркость по вертикали и горизонтали: тень шапки и ободок — в пределах нескольких единиц из 255; линия блика — на глаз); пересобраны `G13_5_win`, `G13_5_panels`, `G18_3_leaders`, `G19_3_lab`, `G20_1b_hearts`. Униформы, которые ставит `CandyCard`, — прежние |
 | 7 | `pill.gdshader` | плашка «Осталось блоков» (`PillLabel`) | `pill_label.jpg` | 27.11, утро: мягкая лунка-таблетка, тени и блики по контуру (вес — `box_normal`). Внутренняя тень у верхнего края глубже (45 %, гаснет за 12 px вместо 2 px), по торцам вдвое слабее и узкая (4 px), к низу торцов гаснет; низ чуть светлее; по нижнему краю тонкая светлая кромка `#E0D4FF` — ярче на нижних скруглениях, посередине слабее, вверх по торцам гаснет. Заливка прежняя. Сверено по яркости в столбцах плашки с референсом: тень сверху и кромка — в пределах нескольких единиц из 255; пересобраны кадры `tools/shader_preview.py` (`G13_1_game` и др.) и `G20_1b_hearts`. Униформы, которые ставит `PillLabel`, — прежние |
-| 8 | `win_rays.gdshader` | лучи победы | нужен свой | — |
+| 8 | `win_rays.gdshader` | лучи и свечение победы (`WinBackdrop`); тот же шейдер — свечение логотипа меню и промо | `win_rays.jpg` | 27.11, вечер: лучи — мягкие клинья вместо белых клиньев с резким краем: ядро 0,06 периода от оси, дальше плавно гаснут за 0,26 периода; каждый второй ×0,6; цвет (255, 215, 255); сила 0,9 (была 0,09), радиус 600 px (был 760). Свечение — скруглённый прямоугольник по рамке поля вместо эллипса: на 70 px шире рамки с каждой стороны при любом размере поля (`WinBackdrop.GLOW_MARGIN`; `play` и `set_center` теперь получают размер рамки, на альбомном поле тоже 70 px), скругление 250, край σ 28 px, (255, 199, 255) 92 % (было (255, 225, 255) 40 %, σ 70). Сверено с референсом по полосам удалённости от поля: от 30 px и дальше — в пределах ±7 единиц яркости из 255; у самой кромки поля темнее на ~30 (тень поля поверх свечения); разброс яркости лучей у края экрана 11 против 9 у референса, у карточки 3,1 против 3,3. Меню и промо — прежний вид, задан явно (`MenuLogo._make_halo`, `RAYS_CLASSIC` в `shader_preview.py`): кадр меню и промо-картинки совпали со старым шейдером до пикселя. Пересобраны `G13_5_win` и промо (они устарели ещё после строк 1–3; `promo_check` — 0 проблем) |
 | 9 | `ghost.gdshader` | место несомого блока | нужен свой | — |
 | 10 | `check.gdshader` | галочка | нужен свой | — |
 | 11 | `line_wave.gdshader` | волна света по ряду | нужен свой | — |

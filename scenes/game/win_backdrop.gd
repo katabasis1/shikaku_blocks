@@ -10,11 +10,13 @@ const SHADER: Shader = preload("res://shaders/win_rays.gdshader")
 ## Проявление лучей и свечения, с; когда после play() стреляет конфетти, с.
 const FADE_IN := 0.4
 const CONFETTI_DELAY := 0.1
-## Лучи и свечение в кадре — для поля 520 px (клетка 80 на 6×6): радиус лучей и полуоси свечения
-## растут вместе с полем (от этой стороны), но не меньше, чем в кадре.
+## Лучи в кадре — для поля 520 px (клетка 80 на 6×6): радиус лучей растёт вместе с большей стороной поля (от
+## этой стороны), но не меньше, чем в кадре. Свечение — по рамке поля: скруглённый прямоугольник на GLOW_MARGIN px
+## шире её с каждой стороны, при любом размере поля (на альбомном поле ×2,25 тоже 70 px, а не 160); край,
+## скругление и сила — в шейдере (20.8, П7).
 const FRAME_BOARD := 520.0
-const RAYS_RADIUS := 760.0
-const GLOW_RADIUS := Vector2(330.0, 335.0)
+const RAYS_RADIUS := 600.0
+const GLOW_MARGIN := 70.0
 
 var rays: ColorRect
 var confetti: Confetti
@@ -43,11 +45,11 @@ func _init() -> void:
 	resized.connect(_update_rect)
 
 
-## Показать фон победы вокруг поля: center — середина поля, board_side — его большая сторона (px узла).
-func play(center: Vector2, board_side: float) -> void:
+## Показать фон победы вокруг поля: center — середина рамки поля, board_size — её размер (px узла).
+func play(center: Vector2, board_size: Vector2) -> void:
 	if _tween and _tween.is_valid():
 		_tween.kill()
-	set_center(center, board_side)
+	set_center(center, board_size)
 	show()
 	rays.modulate.a = 0.0
 	confetti.stop()
@@ -57,12 +59,12 @@ func play(center: Vector2, board_side: float) -> void:
 
 
 ## Центр лучей и свечения (и размер под поле) — после смены раскладки во время победы.
-func set_center(center: Vector2, board_side: float) -> void:
+func set_center(center: Vector2, board_size: Vector2) -> void:
 	_center = center
-	var k := maxf(1.0, board_side / FRAME_BOARD)
+	var k := maxf(1.0, maxf(board_size.x, board_size.y) / FRAME_BOARD)
 	_mat.set_shader_parameter(&"center", center)
 	_mat.set_shader_parameter(&"radius", RAYS_RADIUS * k)
-	_mat.set_shader_parameter(&"glow_radius", GLOW_RADIUS * k)
+	_mat.set_shader_parameter(&"glow_radius", board_size * 0.5 + Vector2(GLOW_MARGIN, GLOW_MARGIN))
 	_update_rect()
 
 

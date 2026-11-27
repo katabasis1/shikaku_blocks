@@ -138,7 +138,7 @@ def rays(cv, cx, cy, r, n, alpha, glow, blur):
     hw, hh = max(r, glow[0] + 2 * blur), max(r, glow[1] + 2 * blur)
     sp.draw_rect(cv, "win_rays", cx - hw, cy - hh, 2 * hw, 2 * hh, 1.0, (1, 1, 1, 1), {
         "rect_size": (2 * hw, 2 * hh), "center": (hw, hh), "radius": r, "rays": float(n), "ray_alpha": alpha,
-        "glow_radius": glow, "glow_blur": blur, "glow_color": (1.0, 0.9, 1.0, 0.45)})
+        "glow_radius": glow, "glow_blur": blur, "glow_color": (1.0, 0.9, 1.0, 0.45), **sp.RAYS_CLASSIC})
 
 
 def sparkles(cv, spots):

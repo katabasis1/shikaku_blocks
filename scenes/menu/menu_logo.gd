@@ -137,6 +137,13 @@ func _make_halo() -> ColorRect:
 	m.set_shader_parameter("glow_radius", HALO_GLOW)
 	m.set_shader_parameter("glow_blur", HALO_BLUR)
 	m.set_shader_parameter("glow_color", HALO_COLOR)
+	# Прежний вид лучей и свечения (белые клинья по половине периода, свечение-эллипс): умолчания шейдера —
+	# для экрана победы (20.8, П7).
+	m.set_shader_parameter("ray_color", Color.WHITE)
+	m.set_shader_parameter("ray_core", 0.25)
+	m.set_shader_parameter("ray_soft", 0.0)
+	m.set_shader_parameter("ray_alt", 1.0)
+	m.set_shader_parameter("glow_corner", -1.0)
 	r.material = m
 	return r
 

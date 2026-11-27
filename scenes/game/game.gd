@@ -812,7 +812,7 @@ func _show_win(stars: int, earned: int, gain: int) -> void:
 	else:
 		win_panel.show_result(level, stars, earned, GameState.total_score, gain, GameState.get_best(level))
 	var fr := _board_frame()
-	win_backdrop.play(fr.get_center(), maxf(fr.size.x, fr.size.y))
+	win_backdrop.play(fr.get_center(), fr.size)
 	background.set_win(true)
 
 
@@ -853,7 +853,7 @@ func _apply_win() -> void:
 	_layout_board()
 	if win_backdrop.visible:
 		var fr := _board_frame()
-		win_backdrop.set_center(fr.get_center(), maxf(fr.size.x, fr.size.y))
+		win_backdrop.set_center(fr.get_center(), fr.size)
 
 
 ## Рамка поля в координатах WinBackdrop (он на весь экран Game).
