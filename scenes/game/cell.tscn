@@ -17,9 +17,9 @@ shader_parameter/side = 0.7
 shader_parameter/px = 1.0
 shader_parameter/ring = 0.0
 shader_parameter/halo_blur = 11.0
-shader_parameter/ring_in = 2.5
-shader_parameter/ring_out = 7.0
-shader_parameter/edge = 4.0
+shader_parameter/ring_in = 1.0
+shader_parameter/ring_out = 5.5
+shader_parameter/edge = 9.0
 shader_parameter/shadow_offset = Vector2(0, 3)
 shader_parameter/shadow_blur = 3.0
 

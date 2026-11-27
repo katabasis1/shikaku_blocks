@@ -81,15 +81,24 @@ void fragment() {
 	vec3 lip_c = mix(lip_top.rgb, lip_bottom.rgb, clamp((t - 0.6) / 0.4, 0.0, 1.0));
 	o = over(o, lip_c, fill(d_lip, aa));
 
-	// 3. Лицо бортика.
+	// 3. Лицо бортика. По референсу (20.8, docs/shader_refs/game_scene.jpg): тонкая сиреневая кромка снаружи,
+	// блик по верхней кромке, к лотку лицо мягко темнеет — скос внутрь.
 	float d_face = sd_box(p, lo, hi, rb);
-	o = over(o, mix(face_top.rgb, face_bottom.rgb, t), fill(d_face, aa));
+	float m_face = fill(d_face, aa);
+	vec3 face_c = mix(face_top.rgb, face_bottom.rgb, t);
+	face_c = mix(face_c, lip_top.rgb, 0.45 * (1.0 - smoothstep(0.0, 2.2 * px, -d_face)));
+	float top_line = smoothstep(1.0 * px, 2.5 * px, -d_face) * (1.0 - smoothstep(3.5 * px, 6.0 * px, -d_face));
+	face_c = mix(face_c, vec3(1.0), top_line * (1.0 - smoothstep(0.0, 0.3, t)));
+	o = over(o, face_c, m_face);
 
 	// 4. Утопленный лоток: заливка, внутренняя тень сверху, белый кант под нижним краем.
 	vec2 tlo = lo + vec2(rm);
 	vec2 thi = hi - vec2(rm);
 	float d_tray = sd_box(p, tlo, thi, rt);
 	float m_tray = fill(d_tray, aa);
+	// Скос бортика к лотку: полоса rim·0,45 снаружи лотка темнеет к его краю.
+	float bevel = (1.0 - smoothstep(0.0, rm * 0.45, d_tray)) * (1.0 - m_tray);
+	o = over(o, lip_top.rgb, 0.28 * bevel * m_face);
 	o = over(o, mix(tray_top.rgb, tray_bottom.rgb, t), m_tray);
 	float d_tray_sh = sd_box(p - tray_shadow_offset * px, tlo, thi, rt);
 	o = over(o, tray_shadow.rgb, tray_shadow.a * m_tray * inner_sh(d_tray_sh, tray_shadow_blur * px));
@@ -109,9 +118,18 @@ void fragment() {
 		float d_well = sd_box(qs, vec2(g), vec2(cell - g), rw) * k;
 		float m_well = fill(d_well, aa) * vis;
 		float tw = clamp((qs.y - g) / (cell - 2.0 * g), 0.0, 1.0);
-		o = over(o, mix(well_top.rgb, well_bottom.rgb, tw), m_well);
+		// Ячейка-подушка по референсу (20.8): мягкая тень под ней на лотке, светлый верх -> well_top к низу,
+		// белый скос по верхней кромке, сиреневый — по нижней, тонкая кромка снаружи.
 		float d_well_sh = sd_box(qs - well_shadow_offset * px / k, vec2(g), vec2(cell - g), rw) * k;
-		o = over(o, well_shadow.rgb, well_shadow.a * m_well * inner_sh(d_well_sh, well_shadow_blur * px));
+		o = over(o, well_shadow.rgb, 0.55 * well_shadow.a * vis * fill(d_well_sh, max(1.9 * well_shadow_blur * px, aa)) * (1.0 - m_well));
+		vec3 wc = mix(mix(well_bottom.rgb, vec3(1.0), 0.25), well_top.rgb, smoothstep(0.0, 1.0, tw));
+		float din = -d_well;
+		float rim_hi = smoothstep(0.5 * aa, 0.012 * cell, din) * (1.0 - smoothstep(0.03 * cell, 0.075 * cell, din));
+		wc = mix(wc, vec3(1.0), 0.75 * rim_hi * (1.0 - smoothstep(0.15, 0.6, tw)));
+		float rim_lo = 1.0 - smoothstep(0.02 * cell, 0.1 * cell, din);
+		wc = mix(wc, well_shadow.rgb, 0.32 * rim_lo * smoothstep(0.45, 1.0, tw));
+		wc = mix(wc, well_shadow.rgb, 0.3 * (1.0 - smoothstep(0.0, 0.018 * cell, din)));
+		o = over(o, wc, m_well);
 	}
 
 	COLOR = vec4(o.rgb, o.a * COLOR.a);
