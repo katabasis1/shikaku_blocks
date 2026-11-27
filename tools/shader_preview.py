@@ -536,7 +536,7 @@ SHADE_LIFTED = gd_value(gd_const("scripts/palette.gd", "SHADE_LIFTED"))
 B = {k: gd_value(gd_const("scenes/game/block.gd", k)) for k in
      ("CELL", "DEPTH", "MARGIN_REST", "MARGIN_LIFTED", "SHADOW_REST", "SHADOW_LIFTED", "BLUR_REST",
       "BLUR_LIFTED", "LIFT_SCALE", "DIGIT_OUTLINE")}
-BD = {k: gd_value(gd_const("scenes/game/board.gd", k)) for k in ("PAD", "RIM", "FRAME_DEPTH", "FRAME_MARGIN")}
+BD = {k: gd_value(gd_const("scenes/game/board.gd", k)) for k in ("PAD", "RIM", "FRAME_DEPTH", "FRAME_MARGIN", "GHOST_GLOW")}
 CL = {k: gd_value(gd_const("scenes/game/cell.gd", k)) for k in ("MAGNET_SCALE", "MAGNET_LIFT", "DIGIT_OUTLINE")}
 DIM_A = gd_value(gd_const("scenes/game/cell.gd", "DIM_COLOR"))[3]
 CELL = B["CELL"]
@@ -813,10 +813,12 @@ def render(bad=False):
                    darkened(color_for(area), 0.42), CL["DIGIT_OUTLINE"] * s * k,
                    darkened(color_for(area), 0.5)[:3] + (0.35,), (0, 2 * s * k), alpha)
 
-    # Board/Ghost — место несомого блока.
+    # Board/Ghost — место несомого блока; узел шире места на поля под свечение (Board.GHOST_GLOW, 20.8).
     gcol = GHOST_BAD if bad else color_for(drag_area)
-    draw_rect(cv, "ghost", ox + x * CELL_PX, oy + y * CELL_PX, bw * CELL, bh * CELL, s, gcol,
-              {"rect_size": (bw * CELL, bh * CELL), "px": px, "frame_alpha": 0.6 if bad else 1.0})
+    gm = BD["GHOST_GLOW"] * px
+    draw_rect(cv, "ghost", ox + x * CELL_PX - gm * s, oy + y * CELL_PX - gm * s, bw * CELL + 2 * gm,
+              bh * CELL + 2 * gm, s, gcol,
+              {"rect_size": (bw * CELL, bh * CELL), "margin": gm, "px": px, "bad": 1.0 if bad else 0.0})
 
     # Блоки на поле — по рядам (Board._sort_block).
     for i in sorted(PLACED, key=lambda j: (rects[j][1], rects[j][0])):

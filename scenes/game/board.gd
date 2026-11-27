@@ -21,6 +21,8 @@ const PAD := 26.0
 const RIM := 15.0
 const FRAME_DEPTH := 12.0
 const FRAME_MARGIN := 72.0
+## Поля узла Ghost под свечение призрака (ghost.gdshader: Гаусс σ glow_sigma = 9 px, до ≈3σ), логические px (20.8).
+const GHOST_GLOW := 28.0
 ## Наибольший масштаб по умолчанию (портрет); в альбоме Game ставит max_scale из GameLayout.
 const MAX_SCALE := 1.35
 ## Блок подсказки, пока ждёт искру и плывёт на место (14.6g): поверх лотка и панелей; на месте — снова 0.
@@ -53,6 +55,8 @@ var _tints: Dictionary = {}
 var _pinned: Array[Block] = []
 ## Локальных px поля в логическом px экрана (1 / масштаб поля).
 var _px: float = 1.0
+## Место, на котором стоит призрак (show_preview), — для пересчёта полей узла Ghost при смене масштаба.
+var _ghost_rect := Rect2i()
 var _appear_tween: Tween
 var _dim_tween: Tween
 var _dim := 0.0
@@ -221,6 +225,8 @@ func _update_frame() -> void:
 	var gmat := ghost.material as ShaderMaterial
 	if gmat:
 		gmat.set_shader_parameter("px", _px)
+	if ghost.visible:
+		_place_ghost()  # поля под свечение — в логических px: при новом масштабе пересчитать
 	for cell in _cells:
 		if cell != null:
 			cell.set_px(_px)
@@ -380,22 +386,33 @@ func can_fit_anywhere(dims: Vector2i) -> bool:
 	return false
 
 
-## Призрак места r (STYLE, раздел 6): форма блока цветом площади 35 % с белой рамкой. Место, куда
-## нельзя, — красный призрак (GHOST_BAD). area — площадь несомого блока (-1 — площадь r).
+## Призрак места r (STYLE, раздел 6; вид — ghost.gdshader): светящийся прозрачный «слот» цвета площади с белой
+## рамкой и свечением вокруг. Место, куда нельзя, — красный призрак (GHOST_BAD), тусклее. area — площадь несомого
+## блока (-1 — площадь r). Узел шире места на GHOST_GLOW логических px с каждой стороны (поля под свечение).
 func show_preview(r: Rect2i, valid: bool, area: int = -1) -> void:
 	if not is_inside(r):
 		clear_preview()
 		return
 	var a := area if area > 0 else r.size.x * r.size.y
-	ghost.position = Vector2(r.position) * CELL
-	ghost.size = Vector2(r.size) * CELL
+	_ghost_rect = r
 	ghost.color = Palette.color_for(a) if valid else Palette.GHOST_BAD
 	var mat := ghost.material as ShaderMaterial
 	if mat:
-		mat.set_shader_parameter("rect_size", ghost.size)
-		mat.set_shader_parameter("px", _px)
-		mat.set_shader_parameter("frame_alpha", 1.0 if valid else 0.6)
+		mat.set_shader_parameter("bad", 0.0 if valid else 1.0)
+	_place_ghost()
 	ghost.visible = true
+
+
+## Узел Ghost — на месте _ghost_rect с полями GHOST_GLOW логических px (под свечение) при текущем масштабе.
+func _place_ghost() -> void:
+	var m := GHOST_GLOW * _px
+	ghost.position = Vector2(_ghost_rect.position) * CELL - Vector2(m, m)
+	ghost.size = Vector2(_ghost_rect.size) * CELL + Vector2(2.0 * m, 2.0 * m)
+	var mat := ghost.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("rect_size", Vector2(_ghost_rect.size) * CELL)
+		mat.set_shader_parameter("margin", m)
+		mat.set_shader_parameter("px", _px)
 
 
 func clear_preview() -> void:

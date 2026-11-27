@@ -7363,7 +7363,10 @@ func _test_board_style(game: Game) -> void:
 	var ghost := board.ghost
 	var gr := Rect2i(0, 0, 2, 1)
 	board.show_preview(gr, true, 2)
-	_check(ghost.visible and ghost.position == Vector2.ZERO and ghost.size == Vector2(2, 1) * Board.CELL
+	# Узел шире места на поля под свечение (GHOST_GLOW логических px, 20.8).
+	var gm := Board.GHOST_GLOW * bpx
+	_check(ghost.visible and ghost.position.is_equal_approx(-Vector2(gm, gm))
+			and ghost.size.is_equal_approx(Vector2(2, 1) * Board.CELL + Vector2(2.0 * gm, 2.0 * gm))
 			and ghost.color == Palette.color_for(2), "призрак верного места: не там или не цвета площади")
 	board.show_preview(gr, false, 2)
 	_check(ghost.visible and ghost.color == Palette.GHOST_BAD, "призрак места, куда нельзя, не красный")

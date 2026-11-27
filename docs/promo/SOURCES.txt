@@ -2,7 +2,7 @@
 # источники
 116e94e7c071f1831e0df16a61e8a6d66fd6474a  tools/promo_art.py
 1a416411c126957333c0d22bc7a79a6bdd62f1fa  scenes/game/block.gd
-fd9471b3c1b68165c19112809a319cb84ced19b4  scenes/game/board.gd
+f54183aa81562f2ca8f5f5324f6c9fe8731a4db0  scenes/game/board.gd
 adbae38792ec886d161583652148d200fcf8ca3d  scenes/game/hud_header.gd
 21bb57ca007ff95660e9ee7ddba8a914151cf546  scenes/ui/background.gd
 f77f2d2bf9fa12d260ebf88336366d935fbb8987  scenes/ui/tutorial_hand.tscn
