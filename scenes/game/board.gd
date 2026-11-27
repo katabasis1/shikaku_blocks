@@ -569,7 +569,8 @@ func completed_lines(r: Rect2i) -> Array[Rect2i]:
 
 ## Волна света по закрытой линии line (14.4, LineFlash) через delay, с: из клеток блока from на этой линии (пусто —
 ## из середины линии) к концам; блоки линии вспыхивают (line_block_flash + combo_flash · power), когда до них
-## доходит фронт. power — сила хода (Game: (линий − 1) + (серия − 1)).
+## доходит фронт. power — сила хода (Game: (линий − 1) + (серия − 1)). Свет волны — только в блоках, задевающих
+## линию (20.8, строка 11): их прямоугольники целиком уходят в LineFlash.play.
 func flash_line(line: Rect2i, delay: float, from := Rect2i(), power := 0) -> LineFlash:
 	var fx := LINE_FLASH_SCENE.instantiate() as LineFlash
 	fx_root.add_child(fx)
@@ -579,7 +580,12 @@ func flash_line(line: Rect2i, delay: float, from := Rect2i(), power := 0) -> Lin
 	var origin := fx.size * 0.5
 	if src.has_area():
 		origin = (Vector2(src.position - line.position) + Vector2(src.size) * 0.5) * CELL
-	fx.play(delay, origin, power)
+	var parts: Array[Rect2] = []
+	for b in _blocks:
+		var br: Rect2i = _blocks[b]
+		if br.intersects(line):
+			parts.append(Rect2(Vector2(br.position - line.position) * CELL, Vector2(br.size) * CELL))
+	fx.play(delay, origin, power, parts)
 	var c := Block.cfg()
 	var amount := c.line_block_flash + c.combo_flash * maxi(power, 0)
 	if GameState.reduce_motion:
@@ -594,7 +600,8 @@ func flash_line(line: Rect2i, delay: float, from := Rect2i(), power := 0) -> Lin
 
 
 ## Победа (14.5, WinWave; числа — группа «Победа» в JuiceConfig): от последнего блока from (пусто — от середины поля)
-## по всему полю расходится кольцо света; когда фронт доходит до середины блока, блок вспыхивает (win_block_flash),
+## по всему полю расходится кольцо света (с 20.8, строка 12 — только в блоках: их прямоугольники уходят в
+## WinWave.play); когда фронт доходит до середины блока, блок вспыхивает (win_block_flash),
 ## подпрыгивает (×(1 + win_block_pop); последний блок — нет: он ещё сплющивается от удара) и, если мозаика есть
 ## (win_mosaic; с 14.8e убрана), через win_merge_delay сходится с соседями (Block.merge).
 ## «Меньше движения»: вспышка не сильнее reduced_wave, без подскока.
@@ -606,7 +613,10 @@ func celebrate(from := Rect2i()) -> WinWave:
 	var origin := fx.size * 0.5
 	if from.has_area():
 		origin = (Vector2(from.position) + Vector2(from.size) * 0.5) * CELL
-	fx.play(0.0, origin)
+	var rects: Array[Rect2i] = []
+	for b in _blocks:
+		rects.append(_blocks[b])
+	fx.play(0.0, origin, rects, Vector2i(cols, rows))
 	var c := Block.cfg()
 	var amount := c.win_block_flash
 	if GameState.reduce_motion:

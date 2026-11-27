@@ -40,6 +40,7 @@ BLOCKS = [(0, 0, 1, 3, 0, 0), (1, 2, 2, 1, 1, 2), (3, 1, 3, 2, 5, 1)]
 PLACED = 1
 NESTS = [(1, 0, 2, 2, 1, 0), (3, 0, 3, 1, 4, 0)]   # пустые места: гнёзда с числами
 CELL_PX = 60
+WAVE_SHADER = "line_wave"   # шейдер волны: имя в shaders/ (tools/line_wave_preview.py подставляет вариант)
 PAD_X = 40          # поле вокруг сетки в кадре, px
 PAD_TOP = 48
 PAD_BOTTOM = 40
@@ -110,6 +111,16 @@ def line_geometry():
     horiz = size[0] >= size[1]
     along, span = (origin[0], size[0]) if horiz else (origin[1], size[1])
     return size, origin, max(along, span - along, 1.0), horiz
+
+
+def line_parts():
+    """Board.flash_line: прямоугольники блоков, задевающих линию (целиком, не обрезанные), px узла LineFlash."""
+    lx, ly, lw, lh = LINE
+    out = []
+    for rx, ry, rw, rh in (b[:4] for b in BLOCKS):
+        if min(lx + lw, rx + rw) > max(lx, rx) and min(ly + lh, ry + rh) > max(ly, ry):
+            out.append(((rx - lx) * sp.CELL, (ry - ly) * sp.CELL, rw * sp.CELL, rh * sp.CELL))
+    return out
 
 
 def arrival(p, c):
@@ -231,7 +242,8 @@ def draw_block(cv, ox, oy, s, rect, flash=0.0, glow=(0.0, 0.0), close=None):
         kc = st["c_scale"]
         sp.draw_rect(cv, "check", cx - 50 * kc * s, cy - 50 * kc * s, 100, 100, s * kc, (1, 1, 1, st["c_alpha"]), {
             "rect_size": (100.0, 100.0), "outline": sp.B["DIGIT_OUTLINE"],
-            "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,)})
+            "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,),
+            "tint_color": col})
 
 
 def frame(t, c, power, reduced, words, colors, text_lift, style, fade):
@@ -280,10 +292,13 @@ def frame(t, c, power, reduced, words, colors, text_lift, style, fade):
     ws = wave_state(te, c, power, reduced)
     if ws is not None and ws[0] > 0.001:
         size, origin, _, _ = line_geometry()
-        sp.draw_rect(cv, "line_wave", ox + lx * CELL_PX, oy + ly * CELL_PX, size[0], size[1], s, (1, 1, 1, 1), {
-            "rect_size": size, "radius": sp.gd_value(sp.gd_const("scenes/game/line_flash.gd", "RADIUS")),
-            "origin": origin, "front": ws[1], "band": c["line_wave_width"] * sp.CELL, "trail": c["line_trail"],
-            "strength": ws[0]})
+        params = {"rect_size": size, "radius": sp.gd_value(sp.gd_const("scenes/game/line_flash.gd", "RADIUS")),
+                  "origin": origin, "front": ws[1], "band": c["line_wave_width"] * sp.CELL, "trail": c["line_trail"],
+                  "strength": ws[0]}
+        if "parts" in sp.Shader.get(WAVE_SHADER).defaults:   # 20.8, строка 11: свет — только по блокам линии
+            parts = line_parts()
+            params.update({"parts": parts, "part_count": len(parts)})
+        sp.draw_rect(cv, WAVE_SHADER, ox + lx * CELL_PX, oy + ly * CELL_PX, size[0], size[1], s, (1, 1, 1, 1), params)
     # FxLayer/FloatingText: над серединой блока на text_lift px экрана.
     ts = text_state(te, c, power, reduced)
     if ts is not None and ts[0] > 0.001:

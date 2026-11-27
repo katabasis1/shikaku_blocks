@@ -4587,6 +4587,7 @@ func _play_win(game: Game, lvl: int, hints: int) -> Dictionary:
 	var stopped_at_land := false
 	var held := true      # пока hit-stop: волна стоит (фронт 0, не видна, твин не идёт)
 	var from_block := false
+	var cells_ok := false  # 20.8, строка 12: шейдер знает блок каждой клетки — свет только в блоках
 	var front := 0.0
 	var reach := 0.0
 	var strength := 0.0
@@ -4620,6 +4621,7 @@ func _play_win(game: Game, lvl: int, hints: int) -> Dictionary:
 				wave_found = true
 				reach = w.reach()
 				from_block = absf(w.arrival((Vector2(r.position) + Vector2(r.size) * 0.5) * Block.CELL)) < 0.001
+				cells_ok = _wave_cells_ok(w, board)
 				peak = w.peak
 				for blk in board._blocks:
 					var br: Rect2i = board._blocks[blk]
@@ -4665,7 +4667,7 @@ func _play_win(game: Game, lvl: int, hints: int) -> Dictionary:
 		at_rest = at_rest and is_equal_approx(wp.stars[i].scale.x, 1.0) and wp.stars[i].modulate.a > 0.99 \
 				and is_equal_approx(wp.stars[i].rotation_degrees, WinPanel.STAR_TILT[i])
 	res.merge({"landed": landed, "stopped_at_land": stopped_at_land, "held": held, "wave": wave_found,
-			"wave_gone": not is_instance_valid(wave), "from_block": from_block, "front": front,
+			"wave_gone": not is_instance_valid(wave), "from_block": from_block, "cells_ok": cells_ok, "front": front,
 			"reach": reach, "strength": strength, "peak": peak, "trauma": trauma,
 			"line_waves": new_lines.size(), "line_texts": new_texts.size(),
 			"line_events": int(juice.counts.get(&"line", 0)) - line_ev0,
@@ -4676,6 +4678,23 @@ func _play_win(game: Game, lvl: int, hints: int) -> Dictionary:
 			"punch": punch, "at_rest": at_rest, "panel": wp.visible,
 			"pitch": Audio.last_pitch(Audio.STAR)})  # голосов несколько (15.1b)
 	return res
+
+
+## Свет волны победы — только в блоках (20.8, строка 12): поле w знает размер поля и у каждой клетки — прямоугольник
+## её блока (WinWave.play из Board.celebrate).
+func _wave_cells_ok(w: WinWave, board: Board) -> bool:
+	var mat := w.material as ShaderMaterial
+	if mat == null or mat.get_shader_parameter("grid") != Vector2(board.cols, board.rows):
+		return false
+	var cells: PackedVector4Array = mat.get_shader_parameter("cells")
+	for blk in board._blocks:
+		var br: Rect2i = board._blocks[blk]
+		var v := Vector4(br.position.x, br.position.y, br.size.x, br.size.y)
+		for y in range(br.position.y, br.end.y):
+			for x in range(br.position.x, br.end.x):
+				if cells[y * board.cols + x] != v:
+					return false
+	return true
 
 
 ## Проверки одного прохода _play_win: rm — «Меньше движения».
@@ -4695,6 +4714,8 @@ func _check_win_run(res: Dictionary, rm: bool) -> void:
 			and absf(float(res.peak) - peak) < 0.001 and float(res.strength) > peak * 0.9 and bool(res.wave_gone),
 			"%s: волна по полю (есть: %s, от последнего блока: %s, фронт %.0f из %.0f px, сила %.2f — ждали %.2f, удалилась: %s)" % [
 			tag, res.wave, res.from_block, float(res.front), float(res.reach), float(res.strength), peak, res.wave_gone])
+	_check(bool(res.cells_ok),
+			"%s: волна по полю не знает блоков (cells / grid в win_wave.gdshader) — свет лёг бы и на зазоры" % tag)
 	var amount := minf(cfg.win_block_flash, cfg.reduced_wave) if rm else cfg.win_block_flash
 	var flash_ok := true
 	for v in (res.flash as Dictionary).values():

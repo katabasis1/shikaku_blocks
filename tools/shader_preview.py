@@ -299,9 +299,14 @@ def translate(path):
         prev_if, last_if = last_if, None
         if it[0] == "s":
             st = it[1]
-            m = re.match(r"^uniform\s+" + UTYPES + r"\s+(\w+)\s*(?::[^=]*)?(?:=\s*(.+))?$", st)
+            m = re.match(r"^uniform\s+(" + UTYPES + r")\s+(\w+)\s*(?:\[\s*(\d+)\s*\])?\s*(?::[^=]*)?(?:=\s*(.+))?$", st)
             if m and not stack:
-                uniforms[m.group(1)] = expr(m.group(2)) if m.group(2) else "0.0"
+                utype, uname, usize, udef = m.groups()
+                if usize:   # массив униформ (vec4 parts[12]): список нулей нужной длины, индексы — как в GLSL
+                    zero = "vec%s(0.0)" % utype[-1] if utype.startswith("vec") else "0.0"
+                    uniforms[uname] = "[%s for _ in range(%s)]" % (zero, usize)
+                else:
+                    uniforms[uname] = expr(udef) if udef else "0.0"
                 continue
             if not stack:
                 raise ValueError("непонятно вне функции: " + st)
@@ -372,6 +377,21 @@ def translate(path):
     return "\n".join(lines) + "\n", uniforms
 
 
+class UArr(list):
+    """Массив униформ: индекс — число (как в GLSL) или массив номеров по пикселям (20.8, строка 12: cells[номер
+    клетки] в win_wave.gdshader) — тогда у каждого пикселя свой элемент."""
+    def __getitem__(self, i):
+        if np.ndim(i) == 0:
+            return list.__getitem__(self, int(i))
+        i = np.asarray(i).astype(int)
+        e0 = list.__getitem__(self, 0)
+        if not isinstance(e0, V):
+            return np.asarray([float(np.mean(x)) for x in self])[i]
+        n = len(e0.c)
+        comps = [np.asarray([float(np.mean(x.c[k])) for x in self]) for k in range(n)]
+        return V(c[i] for c in comps)
+
+
 class Shader:
     _cache = {}
 
@@ -391,10 +411,16 @@ class Shader:
         ns = dict(LIB)
         ns["TIME"] = time
         for k, v in self.defaults.items():
-            ns[k] = _cp(v)
+            ns[k] = UArr(_cp(x) for x in v) if isinstance(v, list) else _cp(v)
         for k, v in params.items():
             if k not in self.defaults:
                 raise KeyError("%s: нет униформы %s" % (self.name, k))
+            if isinstance(self.defaults[k], list):   # массив униформ: недостающие — нули (как в Godot)
+                d = self.defaults[k]
+                if len(v) > len(d):
+                    raise ValueError("%s: в %s больше %d элементов" % (self.name, k, len(d)))
+                ns[k] = UArr([V(x) if isinstance(x, (tuple, list)) else x for x in v] + [_cp(x) for x in d[len(v):]])
+                continue
             ns[k] = V(v) if isinstance(v, (tuple, list)) else v
         ns["UV"] = uv
         ns["COLOR"] = V(color)

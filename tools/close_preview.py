@@ -148,7 +148,8 @@ def frame(t, c, reduced):
         sp.draw_rect(cv, "check", ox + (center[0] - 50 * kc) * s, oy + (center[1] - 50 * kc) * s, 100, 100, s * kc,
                      (1, 1, 1, st["c_alpha"]), {
                          "rect_size": (100.0, 100.0), "outline": sp.B["DIGIT_OUTLINE"],
-                         "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,)})
+                         "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,),
+                         "tint_color": col})
     return cv.image()
 
 

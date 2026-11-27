@@ -414,6 +414,7 @@ func _check_node() -> ColorRect:
 	mat.set_shader_parameter("outline", float(DIGIT_OUTLINE))
 	mat.set_shader_parameter("outline_color", Palette.block_digit_outline(area))
 	mat.set_shader_parameter("shadow_color", Palette.block_digit_shadow(area))
+	mat.set_shader_parameter("tint_color", Palette.color_for(area))   # тень заливки галочки (20.8)
 	return _check
 
 

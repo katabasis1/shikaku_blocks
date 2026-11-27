@@ -5,10 +5,13 @@ extends ColorRect
 ## за ней — след; фронт замедляется к концу (как EASE_OUT QUAD), дошёл — всё гаснет за line_fade. Сила растёт
 ## с силой хода (combo_wave), при «Меньше движения» — не больше reduced_wave. Твины — через Juice: hit-stop удара
 ## их останавливает. Узел — поверх блоков (Board/Fx), размер — вся линия; доиграл — удаляется.
+## Свет — только в блоках линии (20.8, строка 11; docs/shader_refs/line_wave.jpg): их прямоугольники передаёт play.
 
 const SHADER: Shader = preload("res://shaders/line_wave.gdshader")
-## Скругление углов, px поля (как у прежней вспышки линии).
+## Скругление углов, px поля: как у блока (block.gdshader, radius 0,24 клетки) и у прежней вспышки линии.
 const RADIUS := 24.0
+## Сколько блоков линии берёт шейдер (uniform vec4 parts[16]): в линии не больше клеток, чем сторона поля.
+const MAX_PARTS := 16
 
 ## Сила волны сейчас (0 — не видна) и путь фронта от точки старта, px узла (selftest).
 var strength := 0.0
@@ -21,8 +24,9 @@ var _reach := 1.0
 var _tween: Tween
 
 
-## Запуск через delay, с: волна из точки origin (px узла — середина клеток блока на линии), power — сила хода.
-func play(delay: float, origin: Vector2, power: int = 0) -> void:
+## Запуск через delay, с: волна из точки origin (px узла — середина клеток блока на линии), power — сила хода,
+## parts — блоки, задевающие линию (прямоугольники целиком, px узла): свет — только в них; пусто — вся линия.
+func play(delay: float, origin: Vector2, power: int = 0, parts: Array[Rect2] = []) -> void:
 	var c := Block.cfg()
 	_origin = origin
 	var horiz := size.x >= size.y
@@ -37,6 +41,11 @@ func play(delay: float, origin: Vector2, power: int = 0) -> void:
 	_mat.set_shader_parameter("origin", origin)
 	_mat.set_shader_parameter("band", c.line_wave_width * Block.CELL)
 	_mat.set_shader_parameter("trail", c.line_trail)
+	var rects := PackedVector4Array()
+	for r in parts.slice(0, MAX_PARTS):
+		rects.append(Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
+	_mat.set_shader_parameter("parts", rects)
+	_mat.set_shader_parameter("part_count", rects.size())
 	peak = clampf(c.line_wave_strength + c.combo_wave * maxi(power, 0), 0.0, 1.0)
 	if GameState.reduce_motion:
 		peak = minf(peak, c.reduced_wave)

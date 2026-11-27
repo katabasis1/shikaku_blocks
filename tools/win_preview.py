@@ -55,6 +55,7 @@ FOOT = 40
 STAR_CROP_W, STAR_CROP_H = 640, 440
 STAR_CARD_TOP = 196      # верх лица карточки на участке, px
 STAR_POINTS = {2: 180, 3: 240}
+WAVE_SHADER = "win_wave"    # шейдер волны: имя в shaders/ (tools/win_wave_preview.py подставляет вариант)
 
 
 def gd_src(path):
@@ -194,6 +195,19 @@ def glow_state(te, c, reduced):
     return c["glow_strength"] * (1 - v), v * (rr + 0.3 * cell)
 
 
+def wave_cells(defaults):
+    """20.8, строка 12: свет волны — только в блоках. Униформы, которые ставит WinWave.play: cells — у каждой клетки
+    поля прямоугольник её блока (клетки), grid — размер поля, cell — клетка, px. Шейдер без них — пусто."""
+    if "cells" not in defaults:
+        return {}
+    cells = [(0.0, 0.0, 0.0, 0.0)] * (COLS * ROWS)
+    for bx, by, bw, bh in (b[:4] for b in BLOCKS):
+        for y in range(by, by + bh):
+            for x in range(bx, bx + bw):
+                cells[y * COLS + x] = (float(bx), float(by), float(bw), float(bh))
+    return {"cells": cells, "grid": (float(COLS), float(ROWS)), "cell": float(sp.CELL)}
+
+
 def board_frame_size():
     return COLS * CELL_PX + 2 * PAD_X, ROWS * CELL_PX + PAD_TOP + PAD_BOTTOM
 
@@ -234,7 +248,8 @@ def draw_block(cv, ox, oy, s, rect, flash, k, merge, c, glow=(0.0, 0.0), close=N
         kc = st["c_scale"] * k
         sp.draw_rect(cv, "check", cx - 50 * kc * s, cy - 50 * kc * s, 100, 100, s * kc, (1, 1, 1, st["c_alpha"]), {
             "rect_size": (100.0, 100.0), "outline": sp.B["DIGIT_OUTLINE"],
-            "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,)})
+            "outline_color": sp.darkened(col, 0.45), "shadow_color": sp.darkened(col, 0.6)[:3] + (0.47,),
+            "tint_color": col})
 
 
 def board_frame(t, c, reduced, fade, pop_steps):
@@ -266,9 +281,10 @@ def board_frame(t, c, reduced, fade, pop_steps):
     ws = wave_state(te, c, reduced)
     if ws is not None and ws[0] > 0.001:
         bw, bh = board_size()
-        sp.draw_rect(cv, "win_wave", ox, oy, bw, bh, s, (1, 1, 1, 1), {
-            "rect_size": (bw, bh), "radius": gdc("scenes/game/win_wave.gd", "RADIUS"), "origin": origin(),
-            "front": ws[1], "band": c["win_wave_width"] * sp.CELL, "trail": c["win_trail"], "strength": ws[0]})
+        params = {"rect_size": (bw, bh), "radius": gdc("scenes/game/win_wave.gd", "RADIUS"), "origin": origin(),
+                  "front": ws[1], "band": c["win_wave_width"] * sp.CELL, "trail": c["win_trail"], "strength": ws[0]}
+        params.update(wave_cells(sp.Shader.get(WAVE_SHADER).defaults))
+        sp.draw_rect(cv, WAVE_SHADER, ox, oy, bw, bh, s, (1, 1, 1, 1), params)
     return cv.image()
 
 
