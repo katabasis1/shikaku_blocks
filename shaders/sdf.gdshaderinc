@@ -10,6 +10,20 @@ float sd_box(vec2 p, vec2 lo, vec2 hi, float r) {
 	return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - rr;
 }
 
+// Нормаль контура скруглённого прямоугольника [lo, hi] (то же скругление, что у sd_box), наружу, длина 1
+// (20.8: блики блоков и полки).
+// На прямых сторонах — (0, ±1) или (±1, 0), на скруглениях плавно поворачивается: по ней блики и губа
+// сужаются и гаснут вдоль контура, а не обрываются по прямой.
+vec2 box_normal(vec2 p, vec2 lo, vec2 hi, float r) {
+	vec2 c = (lo + hi) * 0.5;
+	vec2 b = max((hi - lo) * 0.5, vec2(0.0));
+	float rr = min(r, min(b.x, b.y));
+	vec2 inner = max(b - vec2(rr), vec2(0.0));
+	vec2 q = p - c;
+	vec2 d = q - clamp(q, -inner, inner);
+	return d / max(length(d), 0.0001);
+}
+
 // Покрытие формы с мягким краем полушириной s. Для размытия Гаусса с сигмой σ берём s ≈ 1,9σ.
 float fill(float d, float s) {
 	return 1.0 - smoothstep(-s, s, d);

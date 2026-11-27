@@ -7496,6 +7496,9 @@ func _shelf_problem(tray: Tray) -> String:
 	var size_v: Vector2 = mat.get_shader_parameter(&"shelf_size")
 	if not size_v.is_equal_approx(r.size):
 		return "shelf_size %s, корпус %s" % [size_v, r.size]
+	var outer := float(mat.get_shader_parameter(&"outer"))
+	if not is_equal_approx(outer, Tray.SHELF_OUTER):
+		return "outer %.1f, а поля под губу и тень %.1f (Tray.SHELF_OUTER)" % [outer, Tray.SHELF_OUTER]
 	var empty: Vector3 = mat.get_shader_parameter(&"well_empty")
 	for i in tray.slots.size():
 		var s: Control = tray.slots[i]

@@ -54,9 +54,10 @@ void fragment() {
 	// Сглаживание — около пикселя экрана при любом масштабе блока.
 	float aa = max(fwidth(p.x), 0.0001) * 0.7;
 
-	// Материал по картинке-референсу (20.8, правило 27.11: docs/shader_refs/block_*.png): прозрачный мармелад —
-	// насыщенная глубина в середине, светлый ободок по кромке лица (ярче сверху), блик-серп и искры в верхних
-	// углах, подсветка изнутри над губой, губа темнее с тонким бликом по нижней кромке.
+	// Материал по картинке-референсу (20.8, правило 27.11: docs/shader_refs/game_scene.jpg, блики —
+	// block_highlights.jpg): прозрачный мармелад — насыщенная глубина в середине, светлый ободок по кромке лица
+	// (ярче сверху), мягкий блик-серп, тонкая белая линия блика по контуру верха, подсветка изнутри над губой,
+	// губа темнее с тонким бликом по нижней кромке. Блики идут по контуру формы и гаснут на скруглениях.
 	// 1. Губа: та же форма, сдвинута вниз на глубину.
 	float d_face = sd_box(p, vec2(x0, y0), vec2(x1, fy1), r);
 	float d_lip = sd_box(p, vec2(x0, y0 + dep), vec2(x1, y1), r);
@@ -65,12 +66,17 @@ void fragment() {
 	float m_body = max(m_face, fill(d_lip, ae));
 	float luma = dot(col, vec3(0.299, 0.587, 0.114));
 	vec3 deep = clamp(mix(vec3(luma), col, 1.3), vec3(0.0), vec3(1.0));
-	float tl = clamp((p.y - fy1) / max(y1 - fy1, 1.0), 0.0, 1.0);
-	vec3 c = mix(darken(deep, 0.2), darken(deep, 0.36), tl);
-	// Блик по нижней кромке губы: тонкая светлая линия, как отражение стола в мармеладе.
+	// Тон губы — от её края (а не от высоты): на скруглениях он такой же, как в середине.
 	float lip_in = -d_lip;
-	float lip_line = smoothstep(0.0, 0.01 * k, lip_in) * (1.0 - smoothstep(0.022 * k, 0.04 * k, lip_in));
-	c = mix(c, lighten(deep, 0.45), 0.55 * lip_line * step(fy1, p.y));
+	float tl = 1.0 - clamp(lip_in / max(dep, 1.0), 0.0, 1.0);
+	vec3 c = mix(darken(deep, 0.2), darken(deep, 0.36), tl);
+	// Блик по нижней кромке губы: тонкая светлая линия, как отражение стола в мармеладе. Идёт по контуру губы,
+	// на нижних скруглениях сужается и тает (вес — нормаль контура вниз), а не обрывается по горизонтали.
+	vec2 n_lip = box_normal(p, vec2(x0, y0 + dep), vec2(x1, y1), r);
+	float lip_w = smoothstep(0.3, 0.97, n_lip.y);
+	float lip_hw = mix(0.004, 0.013, lip_w) * k;
+	float lip_line = 1.0 - smoothstep(lip_hw - aa, lip_hw + aa, abs(lip_in - 0.022 * k));
+	c = mix(c, lighten(deep, 0.45), 0.6 * lip_line * lip_w);
 
 	// 2. Лицо: светлее (0,18) сверху -> насыщенный цвет к 40 % -> гуще (темнее 0,08) к низу; свет снизу — шаг 4.
 	float tf = clamp((p.y - y0) / fh, 0.0, 1.0);
@@ -97,14 +103,15 @@ void fragment() {
 	float rim_a = mix(0.9, 0.6, smoothstep(y0 + 0.1 * k, fy1 - 0.05 * k, p.y));
 	face = mix(face, lighten(deep, 0.72), rim * rim_a);
 
-	// 7. Изогнутый блик: серп по верхнему краю (внутренняя форма минус она же, сдвинутая вниз).
+	// 7. Изогнутый блик: серп по верхнему краю (внутренняя форма минус она же, сдвинутая вниз). Нижний край серпа
+	// мягкий: с чётким он читался как плашка поверх блока.
 	float ins = 0.055 * k;
 	float t = min(0.13 * k, fh * 0.26);
 	float ri = max(1.0, r - ins);
 	float s_c = max(1.9 * 0.012 * k, aa);
 	float d_in = sd_box(p, vec2(x0 + ins, y0 + ins), vec2(x1 - ins, fy1 - ins), ri);
 	float d_in_down = sd_box(p - vec2(0.0, t), vec2(x0 + ins, y0 + ins), vec2(x1 - ins, fy1 - ins), ri);
-	float cres = fill(d_in, s_c) * (1.0 - fill(d_in_down, s_c));
+	float cres = fill(d_in, s_c) * (1.0 - fill(d_in_down, 1.9 * 0.03 * k));
 	float y_a = y0 + ins + t;
 	float y_b = y0 + fh * 0.45;
 	float cres_a = p.y < y_a
@@ -112,11 +119,17 @@ void fragment() {
 			: mix(0.5, 0.0, clamp((p.y - y_a) / max(y_b - y_a, 1.0), 0.0, 1.0));
 	face = mix(face, vec3(1.0), cres * cres_a);
 
-	// 8. Искры: вытянутые белые блики в верхних углах (левый крупнее), как от лампы над столом.
-	vec2 g1 = (p - vec2(x0 + 0.24 * k, y0 + 0.07 * k)) / vec2(0.15 * k, 0.038 * k);
-	vec2 g2 = (p - vec2(x1 - 0.14 * k, y0 + 0.07 * k)) / vec2(0.06 * k, 0.026 * k);
-	float glint = max(1.0 - smoothstep(0.3, 1.0, length(g1)), 0.8 * (1.0 - smoothstep(0.25, 1.0, length(g2))));
-	face = mix(face, vec3(1.0), glint * m_face);
+	// 8. Линия блика по контуру (20.8, 27.11; вместо двух овалов-искр в верхних углах — они выглядели наклеенными):
+	// тонкая белая линия внутри кромки лица идёт по всему верху, огибает верхние скругления и, спускаясь по
+	// бокам, сужается и гаснет; слева чуть ярче (свет сверху-слева).
+	vec2 n_face = box_normal(p, vec2(x0, y0), vec2(x1, fy1), r);
+	float y_side = y0 + min(r, fh * 0.5);
+	float hl_w = (1.0 - smoothstep(y_side - 0.06 * k, y_side + min(0.42 * k, fh * 0.3), p.y))
+			* smoothstep(-0.2, 0.25, -n_face.y + 0.35)
+			* mix(1.0, 0.8, smoothstep(x0 + r, x1 - r, p.x));
+	float hl_hw = mix(0.002, 0.009, hl_w) * k;
+	float hl = 1.0 - smoothstep(hl_hw - aa, hl_hw + aa, abs(din - 0.03 * k));
+	face = mix(face, vec3(1.0), 0.92 * hl * hl_w);
 
 	c = mix(c, face, m_face);
 

@@ -597,11 +597,13 @@ def draw_tray(cv):
     L = layout_model.compute(720, 1280, False)
     shelf = L["shelf"]
     slots = layout_model.slots(L)
-    params = {"shelf_size": (shelf[2], shelf[3]),
+    out = float(gd_value(gd_const("scenes/game/tray.gd", "SHELF_OUTER")))   # поля под губу и тень (20.8)
+    params = {"shelf_size": (shelf[2], shelf[3]), "outer": out,
               "well_empty": tuple(1.0 if t is None else 0.0 for t in TRAY_BLOCKS)}
     for i, sr in enumerate(slots):
         params["well%d" % i] = (sr[0] - shelf[0], sr[1] - shelf[1], sr[2], sr[3])
-    draw_rect(cv, "shelf", shelf[0], shelf[1], shelf[2], shelf[3], 1.0, (1, 1, 1, 1), params)
+    draw_rect(cv, "shelf", shelf[0] - out, shelf[1] - out, shelf[2] + 2 * out, shelf[3] + 2 * out, 1.0,
+              (1, 1, 1, 1), params)
     for sr, t in zip(slots, TRAY_BLOCKS):
         if t is None:
             continue

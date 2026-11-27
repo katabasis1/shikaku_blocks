@@ -24,7 +24,7 @@ SCALE = {"blocks": 1.4, "yellow": 1.2, "full": 0.6}
 # Свои референсы (20.8): генератору давали вырезку кадра shader_preview (box) крупно — картинка покрывает ровно её.
 # background — кадр одного фона (Background без поля и кнопок).
 OWN = {"nest": ("nest.jpg", (140, 520, 470, 850), 2.4),
-       "shelf": ("shelf.jpg", (0, 1000, 720, 1280), 1.0),
+       "shelf": ("shelf_tray.jpg", (0, 971, 720, 1280), 1.0),
        "background": ("background.jpg", (0, 0, 720, 1280), 0.5)}
 FONT = os.path.join(ROOT, "assets", "fonts", "nunito_extrabold.ttf")
 

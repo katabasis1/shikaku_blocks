@@ -21,6 +21,8 @@ const SHELF_SHADER: Shader = preload("res://shaders/shelf.gdshader")
 const BLOCK_SCALE := GameLayout.TRAY_SCALE_PORTRAIT
 ## Запас по краям слота, в пикселях.
 const SLOT_MARGIN := 12.0
+## Поля вокруг корпуса полки в прямоугольнике _draw, px: там shelf.gdshader рисует губу и тень под полкой (20.8).
+const SHELF_OUTER := 24.0
 
 var slots: Array[Control] = []
 ## Блок в каждом слоте или null.
@@ -99,6 +101,7 @@ func update_shelf() -> void:
 		return
 	var r := shelf_rect()
 	shelf_material.set_shader_parameter(&"shelf_size", r.size)
+	shelf_material.set_shader_parameter(&"outer", SHELF_OUTER)
 	var empty := Vector3.ZERO
 	for i in slots.size():
 		var s := slots[i]
@@ -117,7 +120,7 @@ func _mark_shelf() -> void:
 
 
 func _draw() -> void:
-	draw_rect(shelf_rect(), Color.WHITE)
+	draw_rect(shelf_rect().grow(SHELF_OUTER), Color.WHITE)
 
 
 ## Новый уровень: старые блоки убираются, очередь — pieces, слоты заполняются: блоки выезжают по одному
