@@ -24,7 +24,7 @@
 Беседа вне Pod (24.10): /files/pod не смонтирован — save.py пишет только архив в файлы беседы
 (/files/conversation/shikaku_blocks_latest.zip) и печатает, куда его скопировать в Pod инструментом files `copy`
 (`conversation-<id>/shikaku_blocks_latest.zip` -> `pod-<podId>/backups/shikaku_blocks_latest.zip`). Pod проекта —
-«шикаку» (с 27.11, вечер — vlt_uE21YLgiDFhFar, POD_ID ниже; прежние — vlt_q03Y16SxS92kZu 27.11 утро, vlt_6VgbxazGXR2L7J 27.11 ночь, vlt_DzP3sLWX0IWCX5 27.11, vlt_ARsg1DssPHwfgk 12.11 вечер, vlt_iNDjfxkx193Pv8 12.11, vlt_UkLgWQC9NxQuyi 11.11, vlt_iNDjfx6LL931Sa 24.10). Лучше работать в беседе
+«шикаку» (с 28.11 — vlt_tCyvJFiQXbcNvl, POD_ID ниже; прежние — vlt_uE21YLgiDFhFar 27.11 вечер, vlt_q03Y16SxS92kZu 27.11 утро, vlt_6VgbxazGXR2L7J 27.11 ночь, vlt_DzP3sLWX0IWCX5 27.11, vlt_ARsg1DssPHwfgk 12.11 вечер, vlt_iNDjfxkx193Pv8 12.11, vlt_UkLgWQC9NxQuyi 11.11, vlt_iNDjfx6LL931Sa 24.10). Лучше работать в беседе
 внутри Pod: тогда всё как раньше.
 
 Что не сохраняется: кэши (__pycache__, *.pyc, tools/.levels_cache.jsonl), .godot/, build/.
@@ -49,7 +49,7 @@ POD = os.path.join(POD_ROOT, "shikaku_blocks")
 BACKUPS = os.path.join(POD_ROOT, "backups")
 CONV = "/files/conversation"   # файлы текущей беседы: туда же копия latest.zip
 LATEST = "shikaku_blocks_latest.zip"
-POD_ID = "vlt_uE21YLgiDFhFar"   # Pod «шикаку» (27.11, вечер); для подсказки, когда Pod не смонтирован
+POD_ID = "vlt_tCyvJFiQXbcNvl"   # Pod «шикаку» (28.11); для подсказки, когда Pod не смонтирован
 ZIP_ROOT = "shikaku_blocks"
 
 SKIP_DIRS = {"__pycache__", ".godot", "build", ".import", ".git"}
